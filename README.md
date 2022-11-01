@@ -34,6 +34,8 @@ output wiil be
 
 ## List of method and status
 
-- [x] doSpelling - spelling suggest with Google
-- [ ] doShortURL - make a short url with tinyurl.com
-- [v] doShortURLDecode - expand a short url
+- [x] **doSpelling** : spelling suggest with Google
+- [x] **doShortURL** : make a short url with tinyurl.com
+- [x] **doShortURLDecode** : expand a short url
+- [x] **checkMp3** : check if a url points to an existing mp3 file 
+- [x] **url_exists** : check if an url exists
