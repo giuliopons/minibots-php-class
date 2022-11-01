@@ -4,7 +4,8 @@ This PHP class is a growing collection (I've started in 2010) of small spiders (
 
 For a few years it was sold on Codecanyon, than it became difficult for me to mantain, so I've turned it offline. Now I've decided to make it open source and I've put it on Github.
 
-Some methods aren't working, I hope that turning this software "open" will help to make it work again. 💪🏼💪🏼💪🏼
+Some methods aren't working, often due to services no longer available or aquired and deeply changed.
+I hope that turning this software "open" will help to make it work again. 💪🏼💪🏼💪🏼
 
 You can see it in action in this four test pages:
 
