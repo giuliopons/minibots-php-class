@@ -24,13 +24,14 @@ echo "<hr>";
 // test ipToGeo
 // -------------------------------------------------------------
 echo "<h2>ipToGeo method</h2>";
-echo "Check ipToGeo function, data from your IP address <b>".$mb->getIP()."</b>: <br><pre>".print_r($mb->ipToGeo(),true)."</pre>";
+echo "Check ipToGeo function, data from your IP address <b>".($mb->getIP())."</b>: <br><pre>".print_r($mb->ipToGeo(),true)."</pre>";
 echo "<hr>";
 
 // test copyFile
 // -------------------------------------------------------------
 echo "<h2>copyFile method</h2>";
 echo "Check copyFile function, copy my avatar from codecanyon on my server: <br>";
+unlink("avatar.jpg");
 if($mb->copyFile("http://1.s3.envato.com/files/68503809/pons-80x80.jpeg","avatar.jpg")) {
 	echo "ok <img src='avatar.jpg'/> (local file on barattalo.it)";
 } else {
@@ -46,8 +47,8 @@ echo "<h2>checkMp3 method</h2>";
 echo "Check if url <b>http://www.artintent.it/Kalimba.mp3</b> is an mp3: <pre>".($temp ? "true" : "false")."</pre>";
 $temp = $mb->checkMp3("https://www.barattalo.it/file_example_MP3_700KB.mp3");
 echo "Check if url <b>https://www.barattalo.it/file_example_MP3_700KB.mp3</b> is an mp3: <pre>".($temp ? "true" : "false")."</pre>";
-
 echo "<hr>";
+
 
 // test doShortUrl and doShortURLDecode
 // -------------------------------------------------------------
@@ -127,13 +128,6 @@ echo "<hr>";
 echo "<h2>readTwitterCounter method</h2>";
 echo "Get number of times the url <b>".$url."</b> has been twitted<br>";
 echo "<pre>".print_r($mb->readTwitterCounter($url),true)."</pre>";
-echo "<hr>";
-
-// test readGooglePlusCounter
-// -------------------------------------------------------------
-echo "<h2>readGooglePlusCounter method</h2>";
-echo "Get number of times the url <b>".$url."</b> has been twitted<br>";
-echo "<pre>".print_r($mb->readGooglePlusCounter($url),true)."</pre>";
 echo "<hr>";
 
 // test wikiDefinition

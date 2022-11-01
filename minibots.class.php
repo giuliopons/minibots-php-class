@@ -23,7 +23,7 @@ Class Minibots
 
 
 	/* ------------------------------------------------------------------------------------ */
-	/* SUPPORT FUNCTIONS                                                                    */
+	/* HELPER FUNCTIONS                                                                     */
 	/* ------------------------------------------------------------------------------------ */
 
 
@@ -61,6 +61,16 @@ Class Minibots
 		preg_match_all('#\s*('.$attrname.')\s*=\s*[\']([^\']*)[\']\s*#i', $s, $x); 
 		if (count($x)>=3 && isset($x[2][0])) return isset($x[2][0]) ? $x[2][0] : "";
 		return "";
+	}
+
+
+	/* return the part of $s between $a and $b */
+	function betweenTags($s,$a,$b) {
+		$s1  =  str_replace($a,"",stristr($s,$a));
+		if($s1) {
+			$s2 = str_replace(stristr($s1,$b), "", $s1);
+		}
+		return $s2;
 	}
 
 
@@ -636,13 +646,6 @@ Class Minibots
 	}
 
 
-function betweenTags($s,$a,$b) {
-	$s1  =  str_replace($a,"",stristr($s,$a));
-	if($s1) {
-		$s2 = str_replace(stristr($s1,$b), "", $s1);
-	}
-	return $s2;
-}
 
 
 	/*
@@ -946,7 +949,7 @@ function betweenTags($s,$a,$b) {
 
 
 	/*
-		Get number of tweets with the specified url counters for a url using Facebook Apis.
+		Get number of tweets with the specified url counters for a url
 		return a number
 		$obj = new Minibots();
 		$infos = $obj->readTwitterCounters("http://www.dailybest.it/2013/03/05/vita-programmatore-gif-animate/");
@@ -961,30 +964,6 @@ function betweenTags($s,$a,$b) {
 		$ar = json_decode($s);
 		if(isset($ar->count)) return $ar->count; else return 0;
 	}
-
-
-
-	/*
-		Get number of Google +1s with the specified url using hidden Google Apis.
-		return a number
-		$obj = new Minibots();
-		$infos = $obj->readGooglePlusCounter("http://www.dailybest.it/2013/03/05/vita-programmatore-gif-animate/");
-		---> 175
-	*/
-	public function readGooglePlusCounter($url) {
-		if (!function_exists("curl_init")) die("readGooglePlusCounter needs CURL module, please install CURL on your php.");
-		$curl = curl_init();
-		curl_setopt($curl, CURLOPT_URL, "https://clients6.google.com/rpc");
-		curl_setopt($curl, CURLOPT_POST, 1);
-		curl_setopt($curl, CURLOPT_POSTFIELDS, '[{"method":"pos.plusones.get","id":"p","params":{"nolog":true,"id":"' . $url . '","source":"widget","userId":"@viewer","groupId":"@self"},"jsonrpc":"2.0","key":"p","apiVersion":"v1"}]');
-		curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-type: application/json'));
-		$curl_results = curl_exec ($curl);
-		curl_close ($curl);
-		$json = json_decode($curl_results, true);
-		return intval( $json[0]['result']['metadata']['globalCounts']['count'] );
-	}
-
 
 
 
