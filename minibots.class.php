@@ -13,11 +13,19 @@ Class Minibots
 	private $max_file_size = 5000;
 	private $file_downloaded = "";
 	public  $use_file_get_contents = "no" ;   //   [ yes | no | https ]
-	                                          //   yes = always, no = always cURL, https = only for https calls
+	                                             //   yes = aways, no = always cURL, https = only for https calls
 
 	public function __construct () {
 		
 	}
+
+
+
+
+	/* ------------------------------------------------------------------------------------ */
+	/* SUPPORT FUNCTIONS                                                                    */
+	/* ------------------------------------------------------------------------------------ */
+
 
 	/*
 	get the IP address of the connected user
@@ -139,7 +147,22 @@ Class Minibots
 		if($https && $this->use_file_get_contents=="https") {
 			return file_get_contents($url);
 		}
-	
+
+		/*
+		curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+			'authority: www.instagram.com',
+			'pragma: no-cache',
+			'cache-control: no-cache',
+			'upgrade-insecure-requests: 1',
+			'user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.100 Safari/537.36',
+			'sec-fetch-mode: navigate',
+			'sec-fetch-user: ?1',
+			'accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*'.'/*;q=0.8,application/signed-exchange;v=b3',
+			'sec-fetch-site: none',
+			'accept-encoding: gzip, deflate',
+			'accept-language: en-US,en;q=0.9,it;q=0.8',
+		));
+		*/
 		//$VERBOSE = true;
 
 		if($VERBOSE) {
@@ -377,6 +400,9 @@ Class Minibots
 		}
 	}
 
+	/* ------------------------------------------------------------------------------------ */
+	/* BOTS                                                                                 */
+	/* ------------------------------------------------------------------------------------ */
 
 
 
@@ -449,26 +475,21 @@ Class Minibots
 	*/
 	public function checkMp3($url) {
 		if (!function_exists("curl_init")) die("checkMp3 needs CURL module, please install CURL on your php.");
-		$a = parse_url($url);
-		if(checkdnsrr(str_replace("www.","",$a['host']),"A") || checkdnsrr(str_replace("www.","",$a['host']))) {
-			$ch = @curl_init();
-			@curl_setopt($ch, CURLOPT_URL, $url);
-			@curl_setopt($ch, CURLOPT_HEADER, 1);
-			@curl_setopt($ch, CURLOPT_NOBODY, 1);
-			@curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-			@curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+			$ch = curl_init();
+			curl_setopt($ch, CURLOPT_URL, $url);
+			curl_setopt($ch, CURLOPT_HEADER, 1);
+			curl_setopt($ch, CURLOPT_NOBODY, 1);
+			curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+			curl_setopt($ch, CURLOPT_TIMEOUT, 15);
 			$results = explode("\n", trim(curl_exec($ch)));
 			$mime = "";
 			foreach($results as $line) {
-				if (strtok($line, ':') == 'Content-Type') {
+				if (strtok(strtolower($line), ':') == 'content-type') {
 					$parts = explode(":", $line);
 					$mime = trim($parts[1]);
 				}
 			}
 			return $mime=="audio/mpeg";
-		} else {
-			return false;
-		}
 	}
 
 
@@ -1161,13 +1182,12 @@ function betweenTags($s,$a,$b) {
 	/*
 		another function to get geographic information from an ip address.
 		this one scrapes data from html, thanks to geoiptool.com service
-		(use with moderation)
+		(please, use with moderation)
 	*/
 	public function doGeoIp($ip="") {
 		// -----------------------------------------------------------------------------------
 		if (!$ip) $ip = $this->getIP();
 		$ar = array();
-		//$web_page = file_get_contents( "http://www.geoiptool.com/en/?IP=".$ip );
 		$web_page = $this->getPage("https://www.geoiptool.com/en/?IP=".$ip);
 		preg_match_all('#<div class="data-item">(.*)</div>#Us', $web_page, $t_array);
 		//print_r($t_array);
