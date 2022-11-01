@@ -16,3 +16,20 @@ You can see it in action in this four test pages:
 ## Disclaimer
 Since this software has some functions that scrape data from third parties sites, please remember to use it with moderation and at your own risk. I've created it primarily for small project purposes, and it could help you to build spiders with PHP and easily bring new functionalities to your works.
 Explore it and be fair, when you create a bot you could harm a server by performing a lot of calls very fast, so pay attention on how you use this software.
+
+
+## Example of usage
+
+```
+/*
+  Google spell suggest.
+*/
+$obj = New Minibots();
+$word = $obj->doSpelling("wikipezia"); 
+echo $word;
+```
+output wiil be
+
+```wikipedia```
+
+	
