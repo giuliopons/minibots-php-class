@@ -33,6 +33,8 @@ output wiil be
 ```wikipedia```
 
 ## List of method and status
+The bot methods marked with a tick are working.
+If you want, you can participate in improving this library by fixing methods.
 
 - [x] **doSpelling** : spelling suggest with Google
 - [x] **doShortURL** : make a short url with tinyurl.com
