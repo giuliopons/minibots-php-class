@@ -13,7 +13,7 @@ Class Minibots
 	private $max_file_size = 5000;
 	private $file_downloaded = "";
 	public  $use_file_get_contents = "no" ;   //   [ yes | no | https ]
-	                                             //   yes = aways, no = always cURL, https = only for https calls
+	                                          //   yes = always, no = always cURL, https = only for https calls
 
 	public function __construct () {
 		
@@ -140,21 +140,6 @@ Class Minibots
 			return file_get_contents($url);
 		}
 
-		/*
-		curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-			'authority: www.instagram.com',
-			'pragma: no-cache',
-			'cache-control: no-cache',
-			'upgrade-insecure-requests: 1',
-			'user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.100 Safari/537.36',
-			'sec-fetch-mode: navigate',
-			'sec-fetch-user: ?1',
-			'accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*'.'/*;q=0.8,application/signed-exchange;v=b3',
-			'sec-fetch-site: none',
-			'accept-encoding: gzip, deflate',
-			'accept-language: en-US,en;q=0.9,it;q=0.8',
-		));
-		*/
 		//$VERBOSE = true;
 
 		if($VERBOSE) {
