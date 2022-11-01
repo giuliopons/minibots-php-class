@@ -20,7 +20,7 @@ $mb = new Minibots();
 $mb->use_file_get_contents = "no"; // this setting works with my hosting!
 $info = $mb->readFacebookPageCounters("https://www.facebook.com/cocacolait/");
 echo "<pre>";
-print_r($info);
+//print_r($info);  NOT WORKING
 echo "</pre>";
 echo "<hr>";
 

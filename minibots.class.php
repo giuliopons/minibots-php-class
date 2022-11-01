@@ -139,7 +139,7 @@ Class Minibots
 		if($https && $this->use_file_get_contents=="https") {
 			return file_get_contents($url);
 		}
-
+	
 		//$VERBOSE = true;
 
 		if($VERBOSE) {
