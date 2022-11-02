@@ -32,7 +32,7 @@ output wiil be
 
 ```wikipedia```
 
-## List of method and status
+## List of bot methods and their status
 The bot methods marked with a tick are working.
 If you want, you can participate in improving this library by fixing methods.
 
@@ -69,5 +69,25 @@ If you want, you can participate in improving this library by fixing methods.
 - [ ] **getLinkedinCounter** : get Linkedin shares counter from URL
 - [x] **getPinterestCounter** : get the number of shares of a URL on Pinterest
 - [ ] **getImageGoogle** : return an image from a string with Google
+- [x] **copyFile** : copy a remote file to your server
 
+## Helper methods
 
+- **getIP** : get ip address of user
+- **dayadd** : add days to a date
+- **attr** : return the html attribute of a given tag, used for scraping HTML
+- **betweenTags** : return a part of a string between two tags, used for scraping HTML
+- **getTags** : return the array of matches when searching for a tag serie while scraping HTML
+- **makeabsolute** : maker an url absolute when scraping HTML
+- **getPagePost** : use cURL to get a page with POST variables
+- **getPage** : get a page with cURL or file_get_contents
+- **findLinks** : extract all the links from a page
+- **findEmails** : extract all the email addresses from a page
+- **justText** : return just text from a web page
+
+## Private methods
+
+- **getHttpResponseCode**
+- **getRemoteFileSize**
+- **on_curl_header**
+- **on_curl_write**
