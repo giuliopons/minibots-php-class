@@ -1134,8 +1134,10 @@ Class Minibots
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 		curl_setopt($ch, CURLOPT_TIMEOUT, 10);
 		curl_setopt($ch, CURLOPT_HEADER, 0);
-		$output = unserialize(curl_exec($ch));
+		$output = curl_exec($ch);
 		curl_close($ch);
+		if(preg_match("/not found\.$/",$output)) return false;
+		$output = unserialize($output);
 		return isset($output[0]) && is_array($output[0]) ? $output[0] : false;
 	}
 
