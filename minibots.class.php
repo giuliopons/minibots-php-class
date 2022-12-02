@@ -147,76 +147,109 @@ Class Minibots
 
 		$VERBOSE = false;
 
-		if (!function_exists("curl_init")) die("getPage needs CURL module, please install CURL on your php.");
-		$ch = curl_init();
-
 		$https = preg_match("/^https/i",$url);
-		//echo $url;
+
 		if($this->use_file_get_contents=="yes") return file_get_contents($url);
 
 		if($https && $this->use_file_get_contents=="https") {
 			return file_get_contents($url);
 		}
 
-		/*
-		curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-			'authority: www.instagram.com',
-			'pragma: no-cache',
-			'cache-control: no-cache',
-			'upgrade-insecure-requests: 1',
-			'user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.100 Safari/537.36',
-			'sec-fetch-mode: navigate',
-			'sec-fetch-user: ?1',
-			'accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*'.'/*;q=0.8,application/signed-exchange;v=b3',
-			'sec-fetch-site: none',
-			'accept-encoding: gzip, deflate',
-			'accept-language: en-US,en;q=0.9,it;q=0.8',
-		));
-		*/
-		//$VERBOSE = true;
+		//
+		// build curl call
+		if (!function_exists("curl_init")) die("getPage needs CURL module, please install CURL on your php.");
+		$ch = curl_init();
 
+		//
+		// VERBOSE DEBUG
 		if($VERBOSE) {
 			curl_setopt($ch, CURLOPT_VERBOSE, true);
-			$verbose = fopen('./tmp/verbose.txt', 'w+');
-			curl_setopt($ch, CURLOPT_STDERR, $verbose);
+			$verboseCurl = fopen('./tmp/verbose.txt', 'w+'); // for debug purpose
+			curl_setopt($ch, CURLOPT_STDERR, $verboseCurl);
 		}
 
+		//
+		// PORT NUMBER
 		preg_match("/:([0-9]+)/i", $url, $matches);
 		if(isset($matches[1]) && $matches[1] > 1) {
 			$port = $matches[1];
-			//$url = str_replace( $matches[0],"",$url);
-			curl_setopt($ch, CURLOPT_PORT, $port);           //Set the port number
-			//echo $port;
-			//echo "<br>".$url."<br>";
+			curl_setopt($ch, CURLOPT_PORT, $port);
 		}
 
+		//
+		// URL
 		curl_setopt($ch, CURLOPT_URL, $url); 
+
+		//
+		// FAIL ON ERROR
 		curl_setopt($ch, CURLOPT_FAILONERROR, 1);       // Fail on errors
-		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);    // allow redirects (abilitato per wikipedia)
+
+		//
+		// FOLLOW REDIRECTS
+		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+
+
+		//
+		// HTTPS
 		if($https) {
 			curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 			curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
 			// curl_setopt($ch, CURLOPT_CERTINFO, true);
 			// curl_setopt($ch, CURLOPT_CAINFO, dirname(__FILE__)."/cacert.pem");
 		}
+
+		//
+		//  ASK FOR ENCODED CONTENT
 		curl_setopt($ch, CURLOPT_ENCODING, 'gzip,deflate,sdch');
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER,1);     // return into a variable
-		//curl_setopt($ch, CURLOPT_PORT, 80);           //Set the port number
-		curl_setopt($ch, CURLOPT_TIMEOUT, 15);          // times out after 15s
-		curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36");   // Webbot name
+
+		//
+		// RESULTS IN A VAR
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER,1);
+
+		//
+		// GET ALSO HEADERS
+		curl_setopt($ch, CURLOPT_HEADER, 1); 
+
+		//
+		// TIMEOUT AFTER 15 secs
+		curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+
+		//
+		// USER AGENT (IS IT OLD?)
+		curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36");
+
+		//
+		// HTTP HEADERS
 		curl_setopt($ch,CURLOPT_HTTPHEADER,array(
 			'accept-language:en-US,en;q=0.8' 
 		));
+
+		//
+		// COOKIES
 		curl_setopt($ch , CURLOPT_COOKIEJAR, './tmp/cookies.txt');
 		curl_setopt($ch , CURLOPT_COOKIEFILE, './tmp/cookies.txt');
 		
+		//
+		// TRUNCATE CALLS IF PAGE TOO BIG
 		if($max_file_size>0) {
 			// if you want to reduce download size, set the byte size limit
 			$this->max_file_size = $max_file_size;
 			curl_setopt($ch, CURLOPT_HEADERFUNCTION, array($this, 'on_curl_header'));
 			curl_setopt($ch, CURLOPT_WRITEFUNCTION, array($this, 'on_curl_write'));
 		}
+
+
+		//
+		// GET URL!
 		$web_page = curl_exec($ch);
+
+
+
+		// Then, after your curl_exec call:
+		$header_size = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+		$header = substr($web_page, 0, $header_size);
+		$body = substr($web_page, $header_size);
+
 		if(strlen($web_page) <= 1 && $max_file_size>0) {
 			$web_page = $this->file_downloaded;
 		}
@@ -224,12 +257,12 @@ Class Minibots
 
 		if($VERBOSE) {
 			/* devug verbose */
-			rewind($verbose);
-			$verboseLog = stream_get_contents($verbose);
+			rewind($verboseCurl);
+			$verboseLog = stream_get_contents($verboseCurl);
 			echo "Verbose information:\n<pre>", htmlspecialchars($verboseLog), "</pre>\n";
 		}
 
-		return $web_page;
+		return array($body,$header);
 	}
 
 
@@ -315,6 +348,7 @@ Class Minibots
 	*/
 	public function justText($text) {
 		$text = preg_replace('#<script(.*?)>(.*?)</script>#is', '', $text);
+		$text = preg_replace('#<style(.*?)>(.*?)</style>#is', '', $text);
 		$text = preg_replace("/[\n\r\t]/"," ",strip_tags($text));
 		$text = preg_replace("/(  +)/"," ",strip_tags($text));
 		return trim($text);
@@ -362,7 +396,10 @@ Class Minibots
 	*/
 	private function getRemoteFileSize($url) {
 		if (substr($url,0,4)=='http') {
-			$x = array_change_key_case(get_headers($url, 1),CASE_LOWER);
+			$h = @get_headers($url, 1);
+			if($h) {
+				$x = array_change_key_case($h,CASE_LOWER);
+			} else return false;
 			if ( strcasecmp($x[0], 'HTTP/1.1 200 OK') != 0 ) { $x = $x['content-length'][1]; }
 			else { $x = $x['content-length']; }
 		}
@@ -649,7 +686,7 @@ Class Minibots
 
 
 	/*
-		Fetch info for a specified URL, maximages and maxkbimg are usefull to get useful images,
+		Fetch info for a specified URL, maximages and minkbimg are usefull to get useful images,
 		so if there is a small icon this image will be skipped, to find an image bigger.
 		Usage example:
 		$obj = new Minibots();
@@ -666,53 +703,93 @@ Class Minibots
 				)
 		)
 	*/
-	public function getUrlInfo($url,$maximages=5,$maxkbimg=10,$DECODESHORT=false) {
-		//echo $url;
-		if($DECODESHORT) {
-		if (!function_exists("curl_init")) die("getUrlInfo needs CURL module, please install CURL on your php.");
-			$url = $this->makeabsolute($url, $this->doShortURLDecode($url));
-			$web_page = $this->getPage($url, $maximages == 0 ? 5000 : 0);
-		} else {
-			$web_page = file_get_contents($url);
+	public function getUrlInfo($url,$maximages=5,$minkbimg=10,$DECODESHORT=false) {
+
+		if(preg_match("/(\.pdf)$/i",$url)) {
+			$o =  parse_url($url);
+			
+			// defaults
+			$data['keywords']="";
+			$data['description']="This is a PDF file.";
+			$data['title']="Document";
+			$data['favicon']="";
+			$data['images']=array();
+			$data["domain"] = isset($o["host"]) ? $o["host"] : "";
+			$data["lastmodified"] = "";
+			return $data;
 		}
+
+
+
+		if($DECODESHORT && !stristr($url,"www.facebook.com")) {
+			if (!function_exists("curl_init")) die("getUrlInfo needs CURL module, please install CURL on your php.");
+			$url = $this->makeabsolute($url, $this->doShortURLDecode($url));
+		}
+
+		$web_page_ar = $this->getPage($url, $maximages == 0 ? 5000 : 0);
+	
+		$o =  parse_url($url);
+		
+		// defaults
 		$data['keywords']="";
 		$data['description']="";
 		$data['title']="";
 		$data['favicon']="";
 		$data['images']=array();
+		$data["domain"] = isset($o["host"]) ? $o["host"] : "";
+		//
 		//search title
-		preg_match_all('#<title([^>]*)?>(.*)</title>#Uis', $web_page, $title_array);
+		preg_match_all('#<title([^>]*)?>(.*)</title>#Uis', $web_page_ar[0], $title_array);
 		$data['title'] = trim($title_array[2][0]);
+		//
 		//search keywords and description
-		preg_match_all('#<meta([^>]*)(.*)>#Uis', $web_page, $meta_array);
-		//print_r($meta_array);
+		preg_match_all('#<meta([^>]*)(.*)>#Uis', $web_page_ar[0], $meta_array);
 		for($i=0;$i<count($meta_array[0]);$i++) {
 			if (strtolower($this->attr($meta_array[0][$i],"name"))=='description') 
 				$data['description'] = trim($this->attr($meta_array[0][$i],"content"));
 			if (strtolower($this->attr($meta_array[0][$i],"name"))=='keywords') 
 				$data['keywords'] = trim($this->attr($meta_array[0][$i],"content"));
 		}
+		if($data['description']=="") {
+			preg_match_all('#<p([^>]*)>(.*)</p>#Uis', $web_page_ar[0], $p_array);
+			$text = "";
+			for($i=0;$i<count($p_array[0]);$i++) if(strlen($text)<200) $text.=$this->justText($p_array[0][$i])." ";
+			$data['description']=$text;
+		}
+		if($data['description']=="") {
+			$text = "";
+			$text =$this->justText( $web_page_ar[0]);
+			$data['description']=substr($text,0,200);
+		}
+
+		//
 		//search favicon
-		preg_match_all('#<link([^>]*)(.*)>#Uis', $web_page, $link_array);
+		preg_match_all('#<link([^>]*)(.*)>#Uis', $web_page_ar[0], $link_array);
 		for($i=0;$i<count($link_array[0]);$i++) {
 			$rel = strtolower($this->attr($link_array[0][$i],"rel"));
 			if ($rel=='shortcut icon' || $rel =="icon") 
 				$data['favicon'] = $this->makeabsolute($url,$this->attr($link_array[0][$i],"href"));
 		}
-
+		//
 		// search images on open graph and schema org
-		preg_match_all('#<meta([^>]*)(.*)/?>#Uis', $web_page, $imgs_array);
+		preg_match_all('#<meta([^>]*)(.*)/?>#Uis', $web_page_ar[0], $meta_array);
+		$imgs0 = array();
 		$imgs = array();
-		for($i=0;$i<count($imgs_array[0]);$i++) {
-			$att1 = $this->attr($imgs_array[0][$i],"property");
-			$att2 = $this->attr($imgs_array[0][$i],"itemprop");
-			if ($att1 == "og:image" || $att2=="image") {
-				$src = trim($this->attr($imgs_array[0][$i],"content"));
-				array_push($imgs,$src);
+		for($i=0;$i<count($meta_array[0]);$i++) {
+			$att1 = $this->attr($meta_array[0][$i],"property");
+			$att2 = $this->attr($meta_array[0][$i],"itemprop");
+			$att3 = $this->attr($meta_array[0][$i],"name");
+			if ($att1 == "og:image" || $att2=="image"|| $att3=="image") {
+				$src = trim($this->attr($meta_array[0][$i],"content"));
+				array_push($imgs0,$src);
 				break;
 			}
 		}
 
+
+
+		//
+		// AMAZON URLS
 		if(stristr($url,"amazon")) {
 
 			// description
@@ -762,30 +839,55 @@ Class Minibots
 
 
 
-		} else {
-
-
-			// search images big enough
-			preg_match_all('#<img([^>]*)(.*)/?>#Uis', $web_page, $imgs_array);
-			for($i=0;$i<count($imgs_array[0]);$i++) {
-				if ($src = $this->attr($imgs_array[0][$i],"src")) {
-					$src = $this->makeabsolute($url,$src);
-					$kb = 1;
-					if($maxkbimg>0) {
-						$kb = $this->getRemoteFileSize($src);
-					}
-					if(!in_array($src,$imgs) && $kb>$maxkbimg*1000) array_push($imgs,$src);
-				}
-				if (count($imgs)>$maximages-1) break;
-			}
-
 		}
-		$data['images']=$imgs;
+	
+		//background-image:url('https://shift-culture.eu/wp-content/uploads/2020/04/Enviroment_1920x600.png');
+
+		//DEBUG
+		if(isset($_GET['debug'])) 		print_r($imgs);
 
 
-		$h = get_headers($url, 1);
-		if (!($h || strstr($h[0], '200') === FALSE)) $data['lastmodified'] = $h['Last-Modified'];
-			else $data['lastmodified']="";
+		//
+		// SEARCH IMAGES TAGS
+		preg_match_all('#<img([^>]*)(.*)/?>#Uis', $web_page_ar[0], $imgs_array);
+		for($i=0;$i<count($imgs_array[0]);$i++) {
+			$src = $this->attr($imgs_array[0][$i],"src");
+			$width = $this->attr($imgs_array[0][$i],"width");
+			if ( $src && !stristr($src,"data:image") && preg_match('/(\.(jpe?g|gif|png|svg))(#(.*))?$/i',$src)) {
+				$src = $this->makeabsolute($url,$src);
+				// if search for image size > 0
+				if($minkbimg>0) {
+					$kb = $this->getRemoteFileSize($src);
+					if(!in_array($src,$imgs) && $kb>$minkbimg*1000) {
+						if(preg_match('/(\.jpe?g)(#(.*))?$/i',$src)) array_unshift($imgs,$src);
+							else array_push($imgs,$src);
+					}
+				} else {
+					if(preg_match('/(\.jpe?g)(#(.*))?$/i',$src)) array_unshift($imgs,$src);
+						else array_push($imgs,$src);
+				}
+			}
+			if (count($imgs)>$maximages-1) break;
+		}
+		$data['images']=array_merge($imgs0, $imgs);
+
+		$data['lastmodified']="";
+		$h = explode("\n",str_replace("\r","",$web_page_ar[1]));
+		foreach($h as $header) {
+			if(stristr($header,"last-modified")) {
+				$data["lastmodified"] = trim(substr($header,strlen("last-modified")+1));
+			}
+		}
+		if($data["title"]=="" && $data["description"]=="") {
+			$data["title"] = "Can't fetch content.";
+		}
+		
+		//DEBUG
+		if(isset($_GET['debug'])) {
+			$data["url"] = $url;
+			print_r($data);
+		}
+
 
 		return $data;
 	}
@@ -920,7 +1022,7 @@ Class Minibots
 	*/
 	public function readFacebookPageCounters($url) {
 		$s = $this->getPage($url);
-		return $s;
+		return $s[0];
 		preg_match_all("#<meta ([^>]*)>#",$s,$matches);
 		foreach($matches[0] as $m) {
 			//print_r($m);
@@ -1029,8 +1131,8 @@ Class Minibots
 
 		$_result = $this->getPage($_url);
 
-		if($_result) {
-			$obj = simplexml_load_string($_result);
+		if($_result[0]) {
+			$obj = simplexml_load_string($_result[0]);
 			if(isset($obj->latt)) {
 				$coords['lat'] = (float)$obj->latt[0];
 				$coords['long'] = (float)$obj->longt[0];
@@ -1046,8 +1148,8 @@ Class Minibots
 		$_url = "eu1.locationiq.com/v1/search.php?key=".$key."&q=".rawurlencode($address)."&format=json";
 
 		$_result = $this->getPage($_url);
-		if($_result) {
-			$obj = json_decode($_result);
+		if($_result[0]) {
+			$obj = json_decode($_result[0]);
 			if(isset($obj[0]->lat)) {
 				$coords['lat'] = (float)$obj[0]->lat;
 				$coords['long'] = (float)$obj[0]->lon;
@@ -1070,7 +1172,7 @@ Class Minibots
 
 		$url = "https://".$wikilang.".wikipedia.org/w/api.php?action=opensearch&search=".urlencode($s)."&format=xml&limit=1";
 		$page = $this->getPage($url);
-		$xml = simplexml_load_string($page);
+		$xml = simplexml_load_string($page[0]);
 		
 		if((string)$xml->Section->Item->Description) {
 			$url2="";
@@ -1080,7 +1182,7 @@ Class Minibots
 				$ar = explode("/",$url2);
 				$last = array_pop($ar);
 				$page = $this->getPage("https://".$wikilang.".wikipedia.org/api/rest_v1/page/summary/".urlencode($last));
-				$data = json_decode($page);
+				$data = json_decode($page[0]);
 				$data->url = "https://".$wikilang.".wikipedia.org/wiki/".urlencode($last);
 				return $data;
 			}
@@ -1134,10 +1236,8 @@ Class Minibots
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 		curl_setopt($ch, CURLOPT_TIMEOUT, 10);
 		curl_setopt($ch, CURLOPT_HEADER, 0);
-		$output = curl_exec($ch);
+		$output = unserialize(curl_exec($ch));
 		curl_close($ch);
-		if(preg_match("/not found\.$/",$output)) return false;
-		$output = unserialize($output);
 		return isset($output[0]) && is_array($output[0]) ? $output[0] : false;
 	}
 
@@ -1170,7 +1270,7 @@ Class Minibots
 		if (!$ip) $ip = $this->getIP();
 		$ar = array();
 		$web_page = $this->getPage("https://www.geoiptool.com/en/?IP=".$ip);
-		preg_match_all('#<div class="data-item">(.*)</div>#Us', $web_page, $t_array);
+		preg_match_all('#<div class="data-item">(.*)</div>#Us', $web_page[0], $t_array);
 		//print_r($t_array);
 		for($j=0;$j<count($t_array[1]);$j++) {
 			preg_match_all('#<span class="bold">(.*)</span>#Us', $t_array[1][$j], $m);
@@ -1342,7 +1442,7 @@ Class Minibots
 
 		$p = $this->getPage("https://www.instagram.com/p/".$code[count($code)-1]."/");
 
-		$o = json_decode($p);
+		$o = json_decode($p[0]);
 
 		$thumb = str_replace("/s640x640/","/s150x150/",$o->graphql->shortcode_media->display_url); // not working
 		$low = str_replace("/s640x640/","/s320x320/",$o->graphql->shortcode_media->display_url); // not working
@@ -1372,7 +1472,7 @@ Class Minibots
 		$p = $this->getPage("https://www.instagram.com/".$user."/");
 
 		// get a big json data
-		preg_match("/window\._sharedData ?= (.*)<\/script>/Uis",$p,$a);
+		preg_match("/window\._sharedData ?= (.*)<\/script>/Uis",$p[0],$a);
 
 		$c = trim(preg_replace("/;$/","",trim($a[1])));
 		$c = trim(preg_replace("/\n/","",trim($c)));
@@ -1437,7 +1537,7 @@ Class Minibots
 
 
 		// get big json data
-		preg_match("/window\._sharedData ?= (.*)<\/script>/Uis",$p,$a);
+		preg_match("/window\._sharedData ?= (.*)<\/script>/Uis",$p[0],$a);
 		$c = trim(preg_replace("/;$/","",trim($a[1])));
 		$c = trim(preg_replace("/\n/","",trim($c)));
 		$b = json_decode($c);
@@ -1549,7 +1649,7 @@ Class Minibots
 
 		$document = $this->getPage("https://twitter.com/$nick");
 
-		preg_match_all('#<ul class="ProfileNav-list">(.*)</ul>#Uis', $document, $stats);
+		preg_match_all('#<ul class="ProfileNav-list">(.*)</ul>#Uis', $document[0], $stats);
 
 		if(isset($stats[1][0])) {
 			$stats[1][0] = str_replace("\n"," ",$stats[1][0]);
@@ -1569,7 +1669,7 @@ Class Minibots
 					$o['tweets'] = preg_replace("/[^0-9]/","",$this->attr($a[0][$i],"title"));
 				}
 			}
-			if(strstr($document,"ProtectedTimeline-heading")) {
+			if(strstr($document[0],"ProtectedTimeline-heading")) {
 				$o['private'] = 1;
 			} else {
 				$o['private'] = 0;
@@ -1577,7 +1677,7 @@ Class Minibots
 
 
 			$o['avatar'] = "";
-			preg_match_all('#<img [^>]*?>#Uis', $document, $t);
+			preg_match_all('#<img [^>]*?>#Uis', $document[0], $t);
 			for ($i=0;$i<count($t[0]);$i++) {
 				if (stristr($this->attr($t[0][$i],"class"),"avatar") && $this->attr($t[0][$i],"src")) { 
 					$o['avatar'] = $this->attr($t[0][$i],"src"); 
@@ -1587,7 +1687,7 @@ Class Minibots
 
 
 		} else {
-			preg_match_all('#<table class=\"profile-stats\">(.*)</table>#Uis', $document, $stats2);
+			preg_match_all('#<table class=\"profile-stats\">(.*)</table>#Uis', $document[0], $stats2);
 			if(isset($stats2[1][0])) {
 				preg_match_all('#<div class="statnum">(.*)</div>#Uis', $stats2[1][0], $stats3);
 				//print_r($stats3);
@@ -1598,7 +1698,7 @@ Class Minibots
 				}
 			}
 
-			preg_match_all('#<td class=\"avatar\">(.*)</td>#Uis', $document, $stats4);
+			preg_match_all('#<td class=\"avatar\">(.*)</td>#Uis', $document[0], $stats4);
 			if(isset($stats4[1][0])) {
 				//print_r($stats4[1][0]);
 				$o['avatar'] = $this->attr($stats4[1][0],"src");
@@ -1641,7 +1741,7 @@ Class Minibots
 	public function getBookData($isbn) {
 		//
 		$return_data = $this->getPage('https://www.googleapis.com/books/v1/volumes?q=isbn:'.urlencode($isbn));
-		$json = json_decode($return_data, true);
+		$json = json_decode($return_data[0], true);
 		if(isset($json["items"][0]["volumeInfo"])) {
 
 			return array(
@@ -1666,7 +1766,7 @@ Class Minibots
 		// added https 23/12/2016 or doesn't work
 		$json_string = $this->getPage("https://www.linkedin.com/countserv/count/share?url=$url&format=json");
 		//print_r($json_string);
-		$json = json_decode($json_string, true);
+		$json = json_decode($json_string[0], true);
 		return isset($json['fCntPlusOne'])?intval($json['fCntPlusOne']):0;
 	}
 
@@ -1679,7 +1779,7 @@ Class Minibots
 	public function getPinterestCounter($url) {
 		// added https 23/12/2016
 		$return_data = $this->getPage('https://api.pinterest.com/v1/urls/count.json?url='.urlencode($url));
-		$json_string = preg_replace('/^receiveCount\((.*)\)$/', "\\1", $return_data);
+		$json_string = preg_replace('/^receiveCount\((.*)\)$/', "\\1", $return_data[0]);
 		$json = json_decode($json_string, true);
 		return isset($json['count'])?intval($json['count']):0;
 	}
@@ -1697,7 +1797,7 @@ Class Minibots
 			// domain .it works 26/04/2017
 			$url = "https://www.google.it/search?q=##query##&tbm=isch";
 			$web_page = $this->getPage( str_replace("##query##",urlencode($k), $url ));
-			preg_match_all("/-?src=\"(http([^\"]*))\"/",$web_page,$a);
+			preg_match_all("/-?src=\"(http([^\"]*))\"/",$web_page[0],$a);
 			return isset($a[1]) ? $a[1] : null;
 		}
 	
@@ -1706,8 +1806,6 @@ Class Minibots
 	
 
 }
-
-
 
 
 ?>
