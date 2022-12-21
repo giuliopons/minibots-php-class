@@ -924,6 +924,7 @@ Class Minibots
 			preg_match_all('#<meta([^>]*)(.*)>#Uis', $web_page_ar[0], $meta_array);
 			for($i=0;$i<count($meta_array[0]);$i++) {
 				if (strtolower($this->attr($meta_array[0][$i],"name"))=='description') $data['description'] = trim($this->attr($meta_array[0][$i],"content"));
+				if (strtolower($this->attr($meta_array[0][$i],"name"))=='og:description') $data['description'] = trim($this->attr($meta_array[0][$i],"content"));
 				if (strtolower($this->attr($meta_array[0][$i],"property"))=='og:title') $data['title'] = trim($this->attr($meta_array[0][$i],"content"));
 			}
 		}
