@@ -74,7 +74,6 @@ If you want, you can participate in improving this library by fixing methods.
 ## Helper methods
 
 - **getIP** : get ip address of user
-- **dayadd** : add days to a date
 - **attr** : return the html attribute of a given tag, used for scraping HTML
 - **betweenTags** : return a part of a string between two tags, used for scraping HTML
 - **getTags** : return the array of matches when searching for a tag serie while scraping HTML
@@ -84,10 +83,13 @@ If you want, you can participate in improving this library by fixing methods.
 - **findLinks** : extract all the links from a page
 - **findEmails** : extract all the email addresses from a page
 - **justText** : return just text from a web page
+- **getHttpResponseCode** : get the http status of a url
+- **getRemoteFileSize** : get size of a remote file
+- **getLdJsonStringOembed**: get oembed data or Ld+json data
+- **findType**: return info on file type extesion
+- **walk_recursive**: find properties or keywords recursively in json objects
 
 ## Private methods
 
-- **getHttpResponseCode**
-- **getRemoteFileSize**
 - **on_curl_header**
 - **on_curl_write**
