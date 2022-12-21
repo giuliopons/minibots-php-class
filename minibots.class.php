@@ -1,19 +1,28 @@
 <?php
 /* ------------------------------------------------------------------------- */
-/* minibots.class.php Ver.4                                                  */
+/* minibots.class.php Ver.4.2                                                */
 /* ------------------------------------------------------------------------- */
-/* Mini Bots class is a small php class that allows you to                   */
-/* use some free web seriveces online to retrive usefull data                */
-/* and infos.                                                                */
+/* Mini Bots class is a small php class that helps you to create bots,       */
+/* it uses some free web seriveces online to retrive usefull data.           */
 /* ------------------------------------------------------------------------- */
 
 Class Minibots 
 {
+	//
+	// used to read only the first part of files
+	// with limited cURL calls
 	private $file_size = 0;
 	private $max_file_size = 5000;
 	private $file_downloaded = "";
-	public  $use_file_get_contents = "no" ;   //   [ yes | no | https ]
-	                                             //   yes = aways, no = always cURL, https = only for https calls
+
+	//
+	// yes = always use file_get_contents, no = always use cURL, https = only file_get_contents for https calls
+	public  $use_file_get_contents = "no" ;
+	
+	//
+	// If you call $minibot->findType(...) this variable will be populated with data that describe
+	// common filetypes. Used in $minibot->getUrlInfo(...) method
+	private $fileInfoJson = false;
 
 	public function __construct () {
 		
@@ -41,30 +50,23 @@ Class Minibots
 
 
 
-	/*
-		add days to a date
-	*/
-	public function dayadd($days,$date=null , $format="d/m/Y"){
-		return date($format,strtotime($days." days",strtotime( $date ? $date : date($format) )));
-	}
 
-
-
-
-	/*
-		this function return the html attribute of a given tag
-		(use for scraping data)
-	*/
+	//
+	//	this function return the html attribute of a given tag
+	//	(use for scraping data)
 	public function attr($s,$attrname) {
 		preg_match_all('#\s*('.$attrname.')\s*=\s*["]([^"]*)["]\s*#i', $s, $x); 
 		if (count($x)>=3 && isset($x[2][0])) return isset($x[2][0]) ? $x[2][0] : "";
 		preg_match_all('#\s*('.$attrname.')\s*=\s*[\']([^\']*)[\']\s*#i', $s, $x); 
 		if (count($x)>=3 && isset($x[2][0])) return isset($x[2][0]) ? $x[2][0] : "";
+		preg_match_all('#\s*('.$attrname.')\s*=\s*([^ ]*)\s*#i', $s, $x); 
+		if (count($x)>=3 && isset($x[2][0])) return isset($x[2][0]) ? $x[2][0] : "";
 		return "";
 	}
 
 
-	/* return the part of $s between $a and $b */
+	//
+	// return the part of the string $s between strings $a and $b
 	function betweenTags($s,$a,$b) {
 		$s1  =  str_replace($a,"",stristr($s,$a));
 		if($s1) {
@@ -72,14 +74,17 @@ Class Minibots
 		}
 		return $s2;
 	}
+	/*function betweenTags($s,$a,$b) {
+		$s1  =  str_replace($a,"",stristr($s,$a));
+		return $s1 ? str_replace(stristr($s1,$b), "", $s1) : $s1;
+	}*/
 
 
 
-	/*
-		return the array of matches when searching for a 
-		tag serie while scraping html
-		$return can be "ALL" | "INNER" | "OUTER"
-	*/
+	//
+	//	return the array of matches when searching for a 
+	//	tag serie while scraping html
+	//	$return can be "ALL" | "INNER" | "OUTER"
 	public function getTags($tagname,$text,$return="ALL") {
 		$tagname = strtolower($tagname);
 		if($tagname=="img" || $tagname=="br" || $tagname=="input") {
@@ -97,10 +102,9 @@ Class Minibots
 
 
 
-	/* 
-		this function makes a relative url an absolute merging
-		properly the url and the link
-	*/
+	// 
+	//	this function makes a relative url an absolute merging
+	//	properly the url and the link.
 	public function makeabsolute($url,$link) {
 		$p = parse_url($url);
 		if (strpos( $link,"http://")===0 ) return trim($link);
@@ -112,16 +116,14 @@ Class Minibots
 
 
 
-	/*
-		Retrieves a page with some parameters in POST.
-		The parameters should be passed like this:
-		$vars = array("name"=>value, "name2"=>value2);
-	*/
+	//
+	//	Retrieves a page with some parameters in POST.
+	//	The parameters should be passed like this:
+	//	$vars = array("name"=>value, "name2"=>value2);
 	public function getPagePost($url,$vars) {
 		if (!function_exists("curl_init")) die("getPagePost needs CURL module, please install CURL on your php.");
 		$s = "";
 		foreach($vars as $k=>$v) $s.= ($s?"&":"") . $k."=".rawurlencode($v);
-
 		$curl = curl_init();
 		curl_setopt($curl, CURLOPT_URL, $url);
 		curl_setopt($curl, CURLOPT_POST, 1);
@@ -137,15 +139,15 @@ Class Minibots
 
 
 
-	/*
-		this method gets a page, use this to build your crawler, it calls curl.
-		on some servers file_get_contents works better, so it uses 
-		the parameter "use_file_get_contents" to switch from curl to file_get_contents
-		doesn't handle POST data.
-	*/
+	//
+	//	this method gets a page, use this to build your crawler, it calls cURL
+	//	but on some servers file_get_contents works better, so it uses 
+	//	the main parameter "use_file_get_contents" to switch from cURL to file_get_contents.
+	//	This method doesn't handle POST data.
 	public function getPage($url, $max_file_size=0) {
 
-		$VERBOSE = false;
+		// turn it true for debug
+		$DEBUG = false;
 
 		$https = preg_match("/^https/i",$url);
 
@@ -160,9 +162,10 @@ Class Minibots
 		if (!function_exists("curl_init")) die("getPage needs CURL module, please install CURL on your php.");
 		$ch = curl_init();
 
+
 		//
 		// VERBOSE DEBUG
-		if($VERBOSE) {
+		if($DEBUG) {
 			curl_setopt($ch, CURLOPT_VERBOSE, true);
 			$verboseCurl = fopen('./tmp/verbose.txt', 'w+'); // for debug purpose
 			curl_setopt($ch, CURLOPT_STDERR, $verboseCurl);
@@ -182,7 +185,7 @@ Class Minibots
 
 		//
 		// FAIL ON ERROR
-		curl_setopt($ch, CURLOPT_FAILONERROR, 1);       // Fail on errors
+		curl_setopt($ch, CURLOPT_FAILONERROR, 1);
 
 		//
 		// FOLLOW REDIRECTS
@@ -203,7 +206,7 @@ Class Minibots
 		curl_setopt($ch, CURLOPT_ENCODING, 'gzip,deflate,sdch');
 
 		//
-		// RESULTS IN A VAR
+		// PUT THE RESULT IN A VAR
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER,1);
 
 		//
@@ -253,7 +256,7 @@ Class Minibots
 		if(strlen($web_page) <= 1 && $max_file_size>0) {
 			$web_page = $this->file_downloaded;
 		}
-		if(curl_error($ch)) echo (curl_error($ch));
+		if(curl_error($ch)) return array( curl_error($ch), $header);
 
 		if($VERBOSE) {
 			/* devug verbose */
@@ -512,14 +515,14 @@ Class Minibots
 		if (!isset($a[1])) return $url;
 		return trim($a[1]);
 	}
+	
 
-	/*
-		Check if an mp3 URL is an mp3.
-		Usage example:
-		$obj = New Minibots();
-		$check = $obj->checkMp3("http://www.artintent.it/Kalimba.mp3"); 
-		--> true
-	*/
+	//
+	//	Check if an mp3 URL is an mp3.
+	//	Usage example:
+	//	$obj = New Minibots();
+	//	$check = $obj->checkMp3("http://www.artintent.it/Kalimba.mp3"); 
+	//	--> true
 	public function checkMp3($url) {
 		if (!function_exists("curl_init")) die("checkMp3 needs CURL module, please install CURL on your php.");
 			$ch = curl_init();
@@ -542,13 +545,12 @@ Class Minibots
 
 
 
-	/*
-		Check if a URL exists, like file_exists, but for remote urls.
-		Usage example:
-		$obj = new Minibots();
-		$check = $obj->url_exists("http://en.wikipedia.org/wiki/Barack_Obama"); 
-		--> true
-	*/
+	//
+	//	Check if a URL exists, like file_exists, but for remote urls.
+	//	Usage example:
+	//	$obj = new Minibots();
+	//	$check = $obj->url_exists("http://en.wikipedia.org/wiki/Barack_Obama"); 
+	//	--> true
 	public function url_exists($url) {
 		return ($this->getHttpResponseCode($url) == 200);
 	}
@@ -556,15 +558,14 @@ Class Minibots
 
 
 
-	/*
-		Check if an email is correct, this function try to validate email address by connecting to the SMTP server.
-		It returns true when email is ok or returns an array(msg, error code) when fails.
-		The second parameter, $from_address should be an email with permission to send mail from your domain.
-		Usage example:
-		$obj = new Minibots();
-		$check = $obj->doSMTPValidation("pons@rockit.it","info@barattalo.com");
-		--> true
-	*/
+	//
+	//	Check if an email is correct, this function try to validate email address by connecting to the SMTP server.
+	//	It returns true when email is ok or returns an array(msg, error code) when fails.
+	//	The second parameter, $from_address should be an email with permission to send mail from your domain.
+	//	Usage example:
+	//	$obj = new Minibots();
+	//	$check = $obj->doSMTPValidation("pons@rockit.it","info@barattalo.com");
+	//	--> true
 	function doSMTPValidation($email, $from_address="", $debug=false) {
 		if (!function_exists('checkdnsrr')) die("This function requires checkdnsrr function, check your Php version.");
 		$output = "";
@@ -684,6 +685,80 @@ Class Minibots
 
 
 
+	//
+	// extract the ldjson object or the oembed object from a webpage.
+	// this object can be used to search data with walk_recursive method.
+	private function getLdJsonStringOembed($webpage) {
+		$o = array();
+		preg_match_all("/<script( *)?type( *)?=( *)?\"application\/ld\+json\"([^>]*)>(.*)<\/script>/imsU", $webpage, $matches);
+		if(isset($matches[5]) && !empty($matches[5])) {
+			foreach( $matches[5] as $obj) {
+				$o[] = json_decode($obj);
+			}
+		} 
+		preg_match_all("/<link rel=\"alternate\" type=\"application\/json\+oembed\" href=\"(.*)\">/imsU",$webpage,$matches);
+		if(isset($matches[1]) && !empty($matches[1])) {
+			$ar = $this->getPage($matches[1][0]);
+			if($ar[0]) $o[] = json_decode($ar[0]);
+		}
+		return !empty($o) ? $o : null;
+	}
+
+
+	//
+	// walk recursively throught an object and extract matching values
+	// by property name or by key. Useful to extract data from
+	// ldjson data in pages. Used in $minibot->getUrlInfo(...) method.
+	function walk_recursive($obj, $key) {
+		$found = array();
+	  if ( is_object($obj) ) {
+		foreach ($obj as $property => $value) 
+			if($property === $key) $found[] = $value;
+			elseif (is_array($value) || is_object($value)) 
+				$found = array_merge( $found,  $this->walk_recursive($value, $key) );
+
+	  } elseif ( is_array($obj) ) {
+		foreach ($obj as $keyar => $value) 
+			if($keyar === $key) $found[] = $value;
+				elseif (is_array($value) || is_object($value)) $found = array_merge( $found,  $this->walk_recursive($value, $key) );
+	  }
+	  return $found;
+	}
+
+
+	//
+	// sometimes downloaded pages have javascript object that are
+	// automatically convertible to json objects (for single quotes)
+	// so this functions make some replaces. Used with Amazon pages
+	// in $minibot->getUrlInfo(...) method.
+	private function fixDecodeJson( $code ) {
+		$code = preg_replace("/[ \t\n\r]+/", " ", $code);
+		$code = preg_replace("/{( *)?'/","{\"",$code);
+		$code = preg_replace("/'( *)?}/","\"}",$code);
+		$code = preg_replace("/:( *)?'/",":\"",$code);
+		$code = preg_replace("/'( *)?:/","\":",$code);
+		$code = preg_replace("/,( *)?'/",",\"",$code);
+		$code = preg_replace("/'( *)?,/","\",",$code);
+		return $code;		
+	}
+
+
+	//
+	//	return info on a file extension, lib here (downloaded locally)
+	//	https://gist.github.com/giuliopons/0913e0bcd1ed5a9c7e0ef012248d15e3
+	public function findType($ext) {
+		if(!$this->fileInfoJson) {
+			$this->fileInfoJson = json_decode(file_get_contents(dirname(__FILE__) . "/fileinfo.json"));
+		}
+		foreach($this->fileInfoJson as $t => $a) {
+			if($t == $ext || $t==strtoupper($ext)) {
+				return $a->descriptions[0];
+			}
+		}
+		return "";
+	}
+
+
 
 	/*
 		Fetch info for a specified URL, maximages and minkbimg are usefull to get useful images,
@@ -703,77 +778,226 @@ Class Minibots
 				)
 		)
 	*/
-	public function getUrlInfo($url,$maximages=5,$minkbimg=10,$DECODESHORT=false) {
 
-		if(preg_match("/(\.pdf)$/i",$url)) {
-			$o =  parse_url($url);
-			
+	public function getUrlInfo($url,$maximages=5,$minkbimg=10) {
+		global $DEBUG;
+
+		//
+		// DEFAULTS
+		$data['favicon']="";
+		$data['keywords']="";
+		$data['images']=array();
+		$data["domain"] = "";
+		$data['title']= "";
+		$data["lastmodified"] = "";
+		$data['description']= "";
+
+
+		//
+		// ANCHOR
+		if(preg_match("/^#/",$url)) { $data["err"] = "Local anchor url"; return $data; }
+
+
+		//
+		// EMPTY
+		if($url=="") { $data["err"] = "Empty url"; return $data; }
+
+
+		//
+		// JAVASCRIPT
+		if(preg_match("/^javascript\:/",$url)) { $data["err"] = "Javascript code"; return $data; }
+
+
+		//
+		// PARSE URL OBJECT
+		$parsed_url =  parse_url($url);
+		$data["domain"] = isset($parsed_url["host"]) ? $parsed_url["host"] : "";
+
+
+		//
+		// IS AN IMAGE FILE
+		if(preg_match("/(\.(jpe?g|gif|png|webp))$/i",$url,$matches)) {
 			// defaults
-			$data['keywords']="";
-			$data['description']="This is a PDF file.";
-			$data['title']="Document";
-			$data['favicon']="";
-			$data['images']=array();
-			$data["domain"] = isset($o["host"]) ? $o["host"] : "";
-			$data["lastmodified"] = "";
+			$data['description']= "This is an image file";
+			$data['title']=basename($url);
+			$data['images']=array($url);
+			$data['favicon'] = $parsed_url["scheme"]."://".$parsed_url["host"]."/favicon.ico";
 			return $data;
 		}
 
 
-
-		if($DECODESHORT && !stristr($url,"www.facebook.com")) {
-			if (!function_exists("curl_init")) die("getUrlInfo needs CURL module, please install CURL on your php.");
-			$url = $this->makeabsolute($url, $this->doShortURLDecode($url));
+		//
+		// IS A PDF FILE
+		if(preg_match("/(\.pdf)$/i",$url)) {
+			$data['description']="This is a PDF file.";
+			$data['title']=basename($url);
+			$data['images']=array();
+			return $data;
 		}
 
+
+		//
+		// IS A FACEBOOK URL
+		if(preg_match("#^https?://www\.facebook\.com#",$url)) {
+			$data['favicon']="https://www.facebook.com/favicon.ico";
+			$data['title']= preg_replace("#^/#","",$parsed_url['path']);
+			if(substr_count($parsed_url['path'],"/")==1 && $parsed_url['path']!="/sharer.php") {
+				$data['description']="This url should be a Facebook url page";
+			} elseif($parsed_url['path']=="/sharer.php"){
+				$data['title'] = "Share";
+				$data['description'] = "Share this content on Facebook";
+			}else {
+				 $data['description']="This is a Facebook url";
+			 }
+			return $data;
+		}
+
+
+		//
+		// IS A TWITTER URL
+		if(preg_match("#^https?://(www\.)?twitter\.com#",$url)) {
+			$data['favicon']="https://twitter.com/favicon.ico";
+			$data['title']= preg_replace("#^/#","",$parsed_url['path']);
+			if(substr_count($parsed_url['path'],"/")==1) {
+				$data['description']="This url should be a Twitter url page";
+			} elseif($parsed_url['path']=="/intent/tweet"){
+				$data['title'] = "Share";
+				$data['description'] = "Share this content on Twitter";
+			}else {
+				 $data['description']="This is a Twitter url";
+			 }
+			return $data;
+		}
+
+		//
+		// IS A LINKEDIN URL
+		if(preg_match("#^https?://(www\.)?linkedin\.com#",$url) && !preg_match("#^https?://(www\.)?linkedin\.com/feed/update#",$url)) {
+			$data['favicon']="https://www.linkedin.com/favicon.ico";
+			if(substr_count($parsed_url['path'],"/")==3 && preg_match("#^/in/([^/]*))/?$#",$parsed_url['path'],$m)) {
+				$data['description']="This is a Linkedin url page";
+				$data['title'] = $m[1];
+			} elseif($parsed_url['path']=="/shareArticle"){
+				$data['title'] = "Share";
+				$data['description'] = "Share this content on Linkedin";
+			}else {
+				$data['title'] = "Linkedin content";
+				 $data['description']="This is a Linkedin url";
+			 }
+			return $data;
+		}
+
+
+		//
+		// IS INSTAGRAM URL
+		if(preg_match("#^https?://(www\.)?instagram\.com#",$url)) {
+			$data['title']="Instagram URL";
+			$data['description']="Sorry can't fetch content";
+			return $data;
+		}
+
+		//
+		// IS A MAILTO URL
+		if(preg_match("#^mailto:#",$url)) {
+			$emails = $this->findEmails($url);
+			$e = array_pop($emails);
+			$data['title']= isset($e) ? $e : "Mailto command";
+			$data['description']= isset($e) ? "Send an email to this address" : "Send email";
+			return $data;
+		}
+
+
+		//
+		// LOCAL URL
+		if(!preg_match("/^https?:\/\//",$url)) { $data["err"] = "Url must begin with http"; return $data; }
+
+
+
+		//
+		// FETCH URL
 		$web_page_ar = $this->getPage($url, $maximages == 0 ? 5000 : 0);
-	
-		$o =  parse_url($url);
+
 		
-		// defaults
-		$data['keywords']="";
-		$data['description']="";
-		$data['title']="";
-		$data['favicon']="";
-		$data['images']=array();
-		$data["domain"] = isset($o["host"]) ? $o["host"] : "";
-		//
-		//search title
-		preg_match_all('#<title([^>]*)?>(.*)</title>#Uis', $web_page_ar[0], $title_array);
-		$data['title'] = trim($title_array[2][0]);
-		//
-		//search keywords and description
-		preg_match_all('#<meta([^>]*)(.*)>#Uis', $web_page_ar[0], $meta_array);
-		for($i=0;$i<count($meta_array[0]);$i++) {
-			if (strtolower($this->attr($meta_array[0][$i],"name"))=='description') 
-				$data['description'] = trim($this->attr($meta_array[0][$i],"content"));
-			if (strtolower($this->attr($meta_array[0][$i],"name"))=='keywords') 
-				$data['keywords'] = trim($this->attr($meta_array[0][$i],"content"));
+		// IF THE FETCHED URL IS A REDIRECT
+		// UPDATE INFO
+		preg_match("#\nlocation: (.*)\n#Uis",$web_page_ar[1],$newurl);
+		if(isset($newurl[1]) && $newurl[1]!="") {
+			$url = $newurl[1];
+			$parsed_url =  parse_url($url);
+			$data["domain"] = isset($parsed_url["host"]) ? $parsed_url["host"] : "";
 		}
+
+		// ADDITIONAL DATA
+		$ldJsonOembed = $this->getLdJsonStringOembed( $web_page_ar[0] );
+
+
+
+		//
+		// SEARCH TITLE
+		preg_match_all('#<title([^>]*)?>(.*)</title>#Uis', $web_page_ar[0], $title_array);
+		$data['title'] = isset($title_array[2][0]) ? trim($title_array[2][0]) : "";
+
+		
+		if( $DEBUG ) {
+			echo "\n----------\$data------------\n";
+			print_r($title_array);
+			echo "\n----------\n";
+		}
+		//
+		// SEARCH DESCRIPTION
+		// 1 LDJSON / OEMBED
+		$arDescription = $this->walk_recursive( $ldJsonOembed, "description" );
+		if(is_array($arDescription)) $data['description'] = array_pop($arDescription);
+		// 2 META
+		if($data['description']=="") {
+			preg_match_all('#<meta([^>]*)(.*)>#Uis', $web_page_ar[0], $meta_array);
+			for($i=0;$i<count($meta_array[0]);$i++) {
+				if (strtolower($this->attr($meta_array[0][$i],"name"))=='description') $data['description'] = trim($this->attr($meta_array[0][$i],"content"));
+				if (strtolower($this->attr($meta_array[0][$i],"property"))=='og:title') $data['title'] = trim($this->attr($meta_array[0][$i],"content"));
+			}
+		}
+		// 3 FIRST <P>
 		if($data['description']=="") {
 			preg_match_all('#<p([^>]*)>(.*)</p>#Uis', $web_page_ar[0], $p_array);
 			$text = "";
 			for($i=0;$i<count($p_array[0]);$i++) if(strlen($text)<200) $text.=$this->justText($p_array[0][$i])." ";
 			$data['description']=$text;
 		}
+		// 4 TEXT
 		if($data['description']=="") {
 			$text = "";
 			$text =$this->justText( $web_page_ar[0]);
 			$data['description']=substr($text,0,200);
 		}
 
+
 		//
-		//search favicon
+		// SEARCH FAVICON
 		preg_match_all('#<link([^>]*)(.*)>#Uis', $web_page_ar[0], $link_array);
 		for($i=0;$i<count($link_array[0]);$i++) {
 			$rel = strtolower($this->attr($link_array[0][$i],"rel"));
-			if ($rel=='shortcut icon' || $rel =="icon") 
+			if (stristr($rel,"icon") )
 				$data['favicon'] = $this->makeabsolute($url,$this->attr($link_array[0][$i],"href"));
 		}
+  
 		//
-		// search images on open graph and schema org
-		preg_match_all('#<meta([^>]*)(.*)/?>#Uis', $web_page_ar[0], $meta_array);
+		// SEARCH PRICE (WOOCOMMERCE / SHOPIFY)
+		$arPrice = $this->walk_recursive( $ldJsonOembed, "price" );
+		if(is_array($arPrice)) {
+			$data['price'] = array_pop($arPrice);
+			$currency = array_pop( $this->walk_recursive( $ldJsonOembed, "priceCurrency" ) );// (WOOCOMMERCE)
+			$currency = $currency !="" ? $currency : array_pop( $this->walk_recursive( $ldJsonOembed, "currency_code" ) );// (SHOPIFY)
+			$data['price'] .= " ".$currency;
+		}
+
+
+
+
+		//
+		// SEARCH MAIN IMAGES ON OPEN GRAPH AND SCHEMA ORG
 		$imgs0 = array();
+		$arImgs = $this->walk_recursive( $ldJsonOembed, "image" );
+		if(is_array($arImgs)) $imgs0 = $arImgs;
+		preg_match_all('#<meta([^>]*)(.*)/?>#Uis', $web_page_ar[0], $meta_array);
 		$imgs = array();
 		for($i=0;$i<count($meta_array[0]);$i++) {
 			$att1 = $this->attr($meta_array[0][$i],"property");
@@ -786,6 +1010,7 @@ Class Minibots
 			}
 		}
 
+		
 
 
 		//
@@ -793,18 +1018,16 @@ Class Minibots
 		if(stristr($url,"amazon")) {
 
 			// description
-			$desc = trim($this->betweenTags($web_page,"bookDescEncodedData =",'",'));
+			$desc = trim($this->betweenTags($web_page_ar[0],"bookDescEncodedData =",'",'));
 			$desc = trim( urldecode(str_replace("\"","",$desc)) );
 
 			if(strlen($desc)<5) {
-				$desc = trim($this->justText($this->betweenTags($web_page,"<div id=\"feature-bullets\" class=\"a-section a-spacing-medium a-spacing-top-small\">",'</div>')));
-				
-
+				$desc = trim($this->justText($this->betweenTags($web_page_ar[0],"<div id=\"feature-bullets\" class=\"a-section a-spacing-medium a-spacing-top-small\">",'</div>')));
 			}
 
 			if(strlen($desc)<5) {
 				$d = "";
-				$ar = $this->getTags("noscript",$web_page,"INNER");
+				$ar = $this->getTags("noscript",$web_page_ar[0],"INNER");
 				if(!empty($ar)) {
 					$d="";
 					foreach($ar as $o) {
@@ -818,37 +1041,33 @@ Class Minibots
 
 			
 			// IL PRIMO PREZZO
-			// <span id="priceblock_ourprice" class="a-size-medium a-color-price">EUR 12,59</span>
-			preg_match_all("/<td class=\"a-text-right dp-price-col\">(.*)<\/td>/imsU",$web_page,$price); //price
-			if(isset($price[1][0]) && !empty($price[1][0])) {
-				$data["price"] = $this->justText($price[1][0]);
+			// "displayPrice":"7,99 €"   o   <span class=\"a-offscreen\">7,99
+			//preg_match_all("/<span class=\"a-offscreen\">([^<]*)<\/span>/imsU",$web_page_ar[0],$price); //price
+			preg_match_all("/(\"|')displayPrice(\"|')( *)?:( *)?(\"|')(.*)(\"|')/imsU",$web_page_ar[0],$price); //price
+			if(isset($price[6][0]) && !empty($price[6][0])) {
+				$data["price"] = $this->justText($price[6][0]);
 			}
 
-			preg_match_all("/<img ([^>]*)>/i",$web_page,$images2); // images
-			if(isset($images2[1]) && !empty($images2[1])) {
-				foreach($images2[0] as $pic) {
-					if(stristr( $this->attr($pic,"class"), "frontImage")) {
-						array_push($imgs,$this->attr($pic,"src"));
-						$data['title2'] = $this->attr($pic,"alt");
-					}
-				}
+			// IMMAGINI
+			preg_match_all("/(\"|')colorImages(\"|')( *)?:(( *)(.*)\}\]\})/imsU",$web_page_ar[0],$images2); // images
+			if(isset($images2[4][0])) {
+				$code = $this->fixDecodeJson( $images2[4][0] );
+				$obj = json_decode( $code );
+				$imgs0 = $this->walk_recursive( $obj, "large" );
 			}
-			/*
-			<img alt="Temporary Road: (una) Vita di Franco Battiato di [Franco Battiato]" src="https://m.media-amazon.com/images/I/41nLJ+swD4L._SY346_.jpg" onload="this.onload='';setCSMReq('af');" data-a-image-name="ebooksImageBlockFront" class="a-dynamic-image frontImage" id="ebooksImgBlkFront" width="222px" data-a-dynamic-image="{&quot;https://m.media-amazon.com/images/I/41nLJ+swD4L._SY346_.jpg&quot;:[222,346],&quot;https://m.media-amazon.com/images/I/41nLJ+swD4L.jpg&quot;:[321,500]}" data-a-manual-replacement="true">
-			*/
 
-
+			$data["favicon"] = "https://upload.wikimedia.org/wikipedia/commons/archive/d/de/20171005153411%21Amazon_icon.png";
 
 		}
 	
-		//background-image:url('https://shift-culture.eu/wp-content/uploads/2020/04/Enviroment_1920x600.png');
 
-		//DEBUG
-		if(isset($_GET['debug'])) 		print_r($imgs);
+
+
+
 
 
 		//
-		// SEARCH IMAGES TAGS
+		// SEARCH OTHER IMAGES TAGS
 		preg_match_all('#<img([^>]*)(.*)/?>#Uis', $web_page_ar[0], $imgs_array);
 		for($i=0;$i<count($imgs_array[0]);$i++) {
 			$src = $this->attr($imgs_array[0][$i],"src");
@@ -871,6 +1090,11 @@ Class Minibots
 		}
 		$data['images']=array_merge($imgs0, $imgs);
 
+
+
+
+		//
+		// LAST MODIFIED DATE
 		$data['lastmodified']="";
 		$h = explode("\n",str_replace("\r","",$web_page_ar[1]));
 		foreach($h as $header) {
@@ -878,16 +1102,31 @@ Class Minibots
 				$data["lastmodified"] = trim(substr($header,strlen("last-modified")+1));
 			}
 		}
+
+
+		//
+		// NO INFO?
 		if($data["title"]=="" && $data["description"]=="") {
-			$data["title"] = "Can't fetch content.";
+			
+			//
+			// find generic information on file type
+			//
+			if(preg_match("/(\.([^\.]*))$/i",$url,$matches)) {
+				$desc = $this->findType($matches[2]);
+				if($desc) {
+					// defaults
+					$data['description']= $this->findType($matches[2]);
+					$data['title']=basename($url);
+					$data['images']=array();
+					$data['favicon'] = $parsed_url["scheme"]."://".$parsed_url["host"]."/favicon.ico";
+					return $data;
+				}
+			}
+			$data["err"] = "Can't fetch content or empty page.";
+
+
 		}
 		
-		//DEBUG
-		if(isset($_GET['debug'])) {
-			$data["url"] = $url;
-			print_r($data);
-		}
-
 
 		return $data;
 	}
@@ -1806,6 +2045,12 @@ Class Minibots
 	
 
 }
+
+
+
+//$obj = new Minibots();
+//$infos = $obj->getUrlInfo("https://www.barattalo.it/ambdemo/"); 
+//die;
 
 
 ?>
