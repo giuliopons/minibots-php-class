@@ -52,7 +52,7 @@ If you want, you can participate in improving this library by fixing methods.
 - [ ] **getLatLong** : get latitute and longitude of a typed address, need an API key (_STATUS UNKNOWN_)
 - [ ] **getLatLongBis** : another get latitute and longitude of a typed address, need an API key (_STATUS UNKNOWN_)
 - [x] **doGeoIp** : get information on user location from its IP address
-- [ ] **wikiDefinition** : get definition of a term from Wikipedia
+- [x] **wikiDefinition** : get definition of a term from Wikipedia
 - [x] **getExchangeRateFromTo** : get exchange rate from a currency to another one
 - [ ] **getImage** : return an image from a string 
 - [ ] **getImageBig** : return a large image from a string
