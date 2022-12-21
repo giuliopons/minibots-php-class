@@ -1,10 +1,13 @@
 <html>
 <head>
 <style>
+* { font-family:monospace }
+a,a:visited { color:#bbb!important;}
+body,html {background:#222; color:#aaa}
 body { font-family:arial; font-size:12px;line-height:15px;padding:10px}
-hr { border-top:1px dotted gray;}
+hr { border-top:1px dotted #777;height:1px;margin:15px 0;}
 h2 { padding:10px 0 5px 0;margin:0;}
-b { background-color:#ffffcc;font-weight:normal;padding:0 3px;}
+b { background-color:#ffffcc; color:#222;font-weight:normal;padding:0 3px;}
 </style>
 </head>
 <body>
