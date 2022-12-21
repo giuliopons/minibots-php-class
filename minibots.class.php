@@ -6,7 +6,7 @@
 /* it uses some free web seriveces online to retrive usefull data.           */
 /* ------------------------------------------------------------------------- */
 
-Class Minibots 
+Class Minibots
 {
 	//
 	// used to read only the first part of files
@@ -257,8 +257,8 @@ Class Minibots
 		}
 		if(curl_error($ch)) return array( curl_error($ch), $header);
 
-		if($VERBOSE) {
-			/* devug verbose */
+		if($DEBUG) {
+			// devug verbose
 			rewind($verboseCurl);
 			$verboseLog = stream_get_contents($verboseCurl);
 			echo "Verbose information:\n<pre>", htmlspecialchars($verboseLog), "</pre>\n";
@@ -924,10 +924,11 @@ Class Minibots
 			preg_match_all('#<meta([^>]*)(.*)>#Uis', $web_page_ar[0], $meta_array);
 			for($i=0;$i<count($meta_array[0]);$i++) {
 				if (strtolower($this->attr($meta_array[0][$i],"name"))=='description') $data['description'] = trim($this->attr($meta_array[0][$i],"content"));
-				if (strtolower($this->attr($meta_array[0][$i],"name"))=='og:description') $data['description'] = trim($this->attr($meta_array[0][$i],"content"));
+				if (strtolower($this->attr($meta_array[0][$i],"property"))=='og:description') $data['description'] = trim($this->attr($meta_array[0][$i],"content"));
 				if (strtolower($this->attr($meta_array[0][$i],"property"))=='og:title') $data['title'] = trim($this->attr($meta_array[0][$i],"content"));
 			}
 		}
+
 		// 3 FIRST <P>
 		if($data['description']=="") {
 			preg_match_all('#<p([^>]*)>(.*)</p>#Uis', $web_page_ar[0], $p_array);
@@ -1335,17 +1336,16 @@ Class Minibots
 
 
 
-	/*
-		Get the WikiPedia definition for a search string. If succeeds returns an object,
-		else return false.
-	*/
+	//
+	//	Get the WikiPedia definition for a search string. If succeeds returns an object,
+	//	else return false.
 	public function wikiDefinition($s,$wikilang="en",$imagewidth=600) {
 
 		$url = "https://".$wikilang.".wikipedia.org/w/api.php?action=opensearch&search=".urlencode($s)."&format=xml&limit=1";
 		$page = $this->getPage($url);
 		$xml = simplexml_load_string($page[0]);
 		
-		if((string)$xml->Section->Item->Description) {
+		if((string)$xml->Section->Item->Url) {
 			$url2="";
 			$image = "";
 			if((string)$xml->Section->Item->Url !="") {
