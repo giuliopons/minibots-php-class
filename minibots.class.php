@@ -31,14 +31,13 @@ Class Minibots
 
 
 
-	/* ------------------------------------------------------------------------------------ */
-	/* HELPER FUNCTIONS                                                                     */
-	/* ------------------------------------------------------------------------------------ */
+	// ------------------------------------------------------------------------------------
+	// HELPER FUNCTIONS
+	// ------------------------------------------------------------------------------------
 
 
-	/*
-	get the IP address of the connected user
-	*/
+	//
+	// get the IP address of the connected user
 	public function getIP() {
 		$ip="";
 		if (getenv("HTTP_CLIENT_IP")) $ip = getenv("HTTP_CLIENT_IP");
@@ -67,7 +66,7 @@ Class Minibots
 
 	//
 	// return the part of the string $s between strings $a and $b
-	function betweenTags($s,$a,$b) {
+	public function betweenTags($s,$a,$b) {
 		$s1  =  str_replace($a,"",stristr($s,$a));
 		if($s1) {
 			$s2 = str_replace(stristr($s1,$b), "", $s1);
@@ -271,12 +270,11 @@ Class Minibots
 
 
 
-	/*
-		this method returns all the links inside a given url
-		skip bad urls (javascript, mailto...), make all urls absolute
-		flags to skip some links to particular extensions (pdf,zip,jpg...) 
-		and to follow external urls.
-	*/
+	//
+	//	this method returns all the links inside a given url
+	//	skip bad urls (javascript, mailto...), make all urls absolute
+	//	flags to skip some links to particular extensions (pdf,zip,jpg...) 
+	//	and to follow external urls.
 	public function findLinks($url, $web_page, $FOLLOW_EXTERNAL=false, $SKIP_EXTENSIONS="") {
 		$stop_host = "";
 		$exts = array();
@@ -324,10 +322,9 @@ Class Minibots
 
 
 
-	/*
-		this method returns all the emails contained
-		in the page.
-	*/
+	//
+	//	this method returns all the emails contained
+	//	in the page.
 	public function findEmails($page) {
 		preg_match_all(
 			'/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}\b/i',
@@ -345,10 +342,9 @@ Class Minibots
 
 
 
-	/*
-		remove all html and tags from a url and get only the text
-		TO DO: could be improved to use only useful tags (headings and paragraphs)
-	*/
+	//
+	//	remove all html and tags from a url and get only the text
+	//	TO DO: could be improved to use only useful tags (headings and paragraphs)
 	public function justText($text) {
 		$text = preg_replace('#<script(.*?)>(.*?)</script>#is', '', $text);
 		$text = preg_replace('#<style(.*?)>(.*?)</style>#is', '', $text);
@@ -358,9 +354,8 @@ Class Minibots
 	}
 
 
-	/*
-		private function to handle file size check and prevent downloading too much
-	*/
+	//
+	//	private function to handle file size check and prevent downloading too much
 	private function on_curl_header($ch, $header) {
 		$trimmed = rtrim($header);   
 		if (preg_match('/^Content-Length: (\d+)$/i', $trimmed, $matches)) {
@@ -376,9 +371,8 @@ Class Minibots
 
 
 
-	/*
-		like the previous one, private function to handle file size check and prevent downloading too much
-	*/
+	//
+	//	like the previous one, private function to handle file size check and prevent downloading too much
 	private function on_curl_write($ch, $data) {
 		$bytes = strlen($data);
 		$this->file_size += $bytes;
@@ -393,11 +387,10 @@ Class Minibots
 
 
 
-	/*
-		private function to get remote file size
-		TO DO: Does it work with https?
-	*/
-	private function getRemoteFileSize($url) {
+	//
+	//	function to get remote file size
+	//	TO DO: Does it work with https?
+	public function getRemoteFileSize($url) {
 		if (substr($url,0,4)=='http') {
 			$h = @get_headers($url, 1);
 			if($h) {
@@ -413,11 +406,10 @@ Class Minibots
 
 
 
-	/*
-		private function to get the http response code for a url
-		TO DO: Does it work with https?
-	*/
-	private function getHttpResponseCode($url) {
+	//
+	//	function to get the http response code for a url
+	//	TO DO: Does it work with https?
+	public function getHttpResponseCode($url) {
 		if (!function_exists("curl_init")) die("getHttpResponseCode needs CURL module, please install CURL on your php.");
 		// 404 not found, 403 forbidden...
 		$ch = @curl_init($url);
@@ -433,9 +425,8 @@ Class Minibots
 
 
 
-	/*
-		Copy a remote url to your local server
-	*/
+	//
+	//	Copy a remote url to your local server
 	public function copyFile($url,$filename){
 		// copy remote file to server
 		$file = fopen ($url, "rb");
@@ -450,19 +441,91 @@ Class Minibots
 		}
 	}
 
-	/* ------------------------------------------------------------------------------------ */
-	/* BOTS                                                                                 */
-	/* ------------------------------------------------------------------------------------ */
+
+	//
+	// walk recursively throught an object and extract matching values
+	// by property name or by key. Useful to extract data from
+	// ldjson data in pages. Used in $minibot->getUrlInfo(...) method.
+	public function walk_recursive($obj, $key) {
+		$found = array();
+	  if ( is_object($obj) ) {
+		foreach ($obj as $property => $value) 
+			if($property === $key) $found[] = $value;
+			elseif (is_array($value) || is_object($value)) 
+				$found = array_merge( $found,  $this->walk_recursive($value, $key) );
+
+	  } elseif ( is_array($obj) ) {
+		foreach ($obj as $keyar => $value) 
+			if($keyar === $key) $found[] = $value;
+				elseif (is_array($value) || is_object($value)) $found = array_merge( $found,  $this->walk_recursive($value, $key) );
+	  }
+	  return $found;
+	}
+
+
+	//
+	// sometimes downloaded pages have javascript object that are
+	// automatically convertible to json objects (for single quotes)
+	// so this functions make some replaces. Used with Amazon pages
+	// in $minibot->getUrlInfo(...) method.
+	public function fixDecodeJson( $code ) {
+		$code = preg_replace("/[ \t\n\r]+/", " ", $code);
+		$code = preg_replace("/{( *)?'/","{\"",$code);
+		$code = preg_replace("/'( *)?}/","\"}",$code);
+		$code = preg_replace("/:( *)?'/",":\"",$code);
+		$code = preg_replace("/'( *)?:/","\":",$code);
+		$code = preg_replace("/,( *)?'/",",\"",$code);
+		$code = preg_replace("/'( *)?,/","\",",$code);
+		return $code;		
+	}
+
+
+	//
+	//	return info on a file extension, lib here (downloaded locally)
+	//	https://gist.github.com/giuliopons/0913e0bcd1ed5a9c7e0ef012248d15e3
+	public function findType($ext) {
+		if(!$this->fileInfoJson) {
+			$this->fileInfoJson = json_decode(file_get_contents(dirname(__FILE__) . "/fileinfo.json"));
+		}
+		foreach($this->fileInfoJson as $t => $a) {
+			if($t == $ext || $t==strtoupper($ext)) {
+				return $a->descriptions[0];
+			}
+		}
+		return "";
+	}
+
+	//
+	// extract the ldjson object or the oembed object from a webpage.
+	// this object can be used to search data with walk_recursive method.
+	public function getLdJsonStringOembed($webpage) {
+		$o = array();
+		preg_match_all("/<script( *)?type( *)?=( *)?\"application\/ld\+json\"([^>]*)>(.*)<\/script>/imsU", $webpage, $matches);
+		if(isset($matches[5]) && !empty($matches[5])) {
+			foreach( $matches[5] as $obj) {
+				$o[] = json_decode($obj);
+			}
+		} 
+		preg_match_all("/<link rel=\"alternate\" type=\"application\/json\+oembed\" href=\"(.*)\">/imsU",$webpage,$matches);
+		if(isset($matches[1]) && !empty($matches[1])) {
+			$ar = $this->getPage($matches[1][0]);
+			if($ar[0]) $o[] = json_decode($ar[0]);
+		}
+		return !empty($o) ? $o : null;
+	}
+
+	// ------------------------------------------------------------------------------------
+	// BOTS
+	// ------------------------------------------------------------------------------------
 
 
 
-	/*
-		Google spell suggest.
-		Usage example:
-		$obj = New Minibots();
-		$word = $obj->doSpelling("wikipezia"); 
-		--> wikipedia
-	*/
+	//
+	//	Google spell suggest.
+	//	Usage example:
+	//	$obj = New Minibots();
+	//	$word = $obj->doSpelling("wikipezia"); 
+	//	--> wikipedia
 	public function doSpelling($q) {
 		// grab google page with search
 		$web_page = file_get_contents( "https://www.google.it/search?q=" . urlencode($q) );
@@ -479,13 +542,12 @@ Class Minibots
 
 
 
-	/*
-		Make a tiny url with tinyurl.com free service.
-		Usage example:
-		$obj = New Minibots();
-		$short_url = $obj->doShortURL("http://www.this.is.a.long.url/words-words-words"); 
-		--> http://tinyurl.com/aiIAa (fake values)
-	*/
+	//
+	//	Make a tiny url with tinyurl.com free service.
+	//	Usage example:
+	//	$obj = New Minibots();
+	//	$short_url = $obj->doShortURL("http://www.this.is.a.long.url/words-words-words"); 
+	//	--> http://tinyurl.com/aiIAa (fake values)
 	public function doShortURL($longUrl) {
 		$short_url= file_get_contents('http://tinyurl.com/api-create.php?url=' . $longUrl);
 		return $short_url;
@@ -494,15 +556,14 @@ Class Minibots
 
 
 
-	/*
-		Convert back from a tiny url to a long url, work also with urls of other services
-		like goo.gl, bit.ly and others. This method works to handle all redirects, not only
-		the ones from shorten url services.
-		Usage example:
-		$obj = New Minibots();
-		$long_url = $obj->doShortURLDecode("http://tinyurl.com/aiIAa"); 
-		--> http://www.this.is.a.long.url/words-words-words (fake values)
-	*/
+	//
+	//	Convert back from a tiny url to a long url, work also with urls of other services
+	//	like goo.gl, bit.ly and others. This method works to handle all redirects, not only
+	//	the ones from shorten url services.
+	//	Usage example:
+	//	$obj = New Minibots();
+	//	$long_url = $obj->doShortURLDecode("http://tinyurl.com/aiIAa"); 
+	//	--> http://www.this.is.a.long.url/words-words-words (fake values)
 	public function doShortURLDecode($url) {
 		if (!function_exists("curl_init")) die("doShortURLDecode needs CURL module, please install CURL on your php.");
 		$ch = @curl_init($url);
@@ -566,7 +627,7 @@ Class Minibots
 	//	$obj = new Minibots();
 	//	$check = $obj->doSMTPValidation("pons@rockit.it","info@barattalo.com");
 	//	--> true
-	function doSMTPValidation($email, $from_address="", $debug=false) {
+	public function doSMTPValidation($email, $from_address="", $debug=false) {
 		if (!function_exists('checkdnsrr')) die("This function requires checkdnsrr function, check your Php version.");
 		$output = "";
 		// --------------------------------
@@ -684,108 +745,19 @@ Class Minibots
 	}
 
 
-
 	//
-	// extract the ldjson object or the oembed object from a webpage.
-	// this object can be used to search data with walk_recursive method.
-	private function getLdJsonStringOembed($webpage) {
-		$o = array();
-		preg_match_all("/<script( *)?type( *)?=( *)?\"application\/ld\+json\"([^>]*)>(.*)<\/script>/imsU", $webpage, $matches);
-		if(isset($matches[5]) && !empty($matches[5])) {
-			foreach( $matches[5] as $obj) {
-				$o[] = json_decode($obj);
-			}
-		} 
-		preg_match_all("/<link rel=\"alternate\" type=\"application\/json\+oembed\" href=\"(.*)\">/imsU",$webpage,$matches);
-		if(isset($matches[1]) && !empty($matches[1])) {
-			$ar = $this->getPage($matches[1][0]);
-			if($ar[0]) $o[] = json_decode($ar[0]);
-		}
-		return !empty($o) ? $o : null;
-	}
-
-
-	//
-	// walk recursively throught an object and extract matching values
-	// by property name or by key. Useful to extract data from
-	// ldjson data in pages. Used in $minibot->getUrlInfo(...) method.
-	function walk_recursive($obj, $key) {
-		$found = array();
-	  if ( is_object($obj) ) {
-		foreach ($obj as $property => $value) 
-			if($property === $key) $found[] = $value;
-			elseif (is_array($value) || is_object($value)) 
-				$found = array_merge( $found,  $this->walk_recursive($value, $key) );
-
-	  } elseif ( is_array($obj) ) {
-		foreach ($obj as $keyar => $value) 
-			if($keyar === $key) $found[] = $value;
-				elseif (is_array($value) || is_object($value)) $found = array_merge( $found,  $this->walk_recursive($value, $key) );
-	  }
-	  return $found;
-	}
-
-
-	//
-	// sometimes downloaded pages have javascript object that are
-	// automatically convertible to json objects (for single quotes)
-	// so this functions make some replaces. Used with Amazon pages
-	// in $minibot->getUrlInfo(...) method.
-	private function fixDecodeJson( $code ) {
-		$code = preg_replace("/[ \t\n\r]+/", " ", $code);
-		$code = preg_replace("/{( *)?'/","{\"",$code);
-		$code = preg_replace("/'( *)?}/","\"}",$code);
-		$code = preg_replace("/:( *)?'/",":\"",$code);
-		$code = preg_replace("/'( *)?:/","\":",$code);
-		$code = preg_replace("/,( *)?'/",",\"",$code);
-		$code = preg_replace("/'( *)?,/","\",",$code);
-		return $code;		
-	}
-
-
-	//
-	//	return info on a file extension, lib here (downloaded locally)
-	//	https://gist.github.com/giuliopons/0913e0bcd1ed5a9c7e0ef012248d15e3
-	public function findType($ext) {
-		if(!$this->fileInfoJson) {
-			$this->fileInfoJson = json_decode(file_get_contents(dirname(__FILE__) . "/fileinfo.json"));
-		}
-		foreach($this->fileInfoJson as $t => $a) {
-			if($t == $ext || $t==strtoupper($ext)) {
-				return $a->descriptions[0];
-			}
-		}
-		return "";
-	}
-
-
-
-	/*
-		Fetch info for a specified URL, maximages and minkbimg are usefull to get useful images,
-		so if there is a small icon this image will be skipped, to find an image bigger.
-		Usage example:
-		$obj = new Minibots();
-		$infos = $obj->getUrlInfo("http://piccsy.com/2013/10/cute-dog"); 
-		--> array(
-			[keywords] => Piccsy, images, beautiful images, creative images, image discovery, discovery, browse, galleries, piccs
-			[description] => Beautiful, inspirational and creative images from Piccsy. Thousands of Piccs from all our streams, for you to browse, enjoy and share with a friend.
-			[title] => Piccsy :: cute dog
-			[favicon] => http://piccsy.com/favicon.ico
-			[images] => Array
-				(
-					[0] => http://img1.piccsy.com/cache/images/03/f1/69269c21__4500deb6_0ec40_cb4-post.jpg
-					[1] => http://piccsy.com/piccsy/images/layout/logo/e02f43.200x200.jpg
-				)
-		)
-	*/
-
+	//	Fetch info for a specified URL, maximages and minkbimg are usefull to get useful images,
+	//	so if there is a small icon this image will be skipped, to find an image bigger.
+	//	Usage example:
+	//	$obj = new Minibots();
+	//	$infos = $obj->getUrlInfo("http://piccsy.com/2013/10/cute-dog"); 
+	//	--> array( ... )
 	public function getUrlInfo($url,$maximages=5,$minkbimg=10) {
 		global $DEBUG;
 
 		//
 		// DEFAULTS
 		$data['favicon']="";
-		$data['keywords']="";
 		$data['images']=array();
 		$data["domain"] = "";
 		$data['title']= "";
@@ -1134,18 +1106,12 @@ Class Minibots
 
 
 
-	/*
-		Get info for video on Youtube or on Vimeo
-		return an array with title, descriptiom, thumb
-		$obj = new Minibots();
-		$infos = $obj->getVideoUrlInfo("http://www.youtube.com/watch?v=KUVlrdfKowk");
-		---> Array
-		(
-			[title] => Lavoratooooooooori - YouTube
-			[description] => Non sapete che mettere di carino nell 'out of office quando andate in ferie?? Ecco...
-			[thumb] => http://img.youtube.com/vi/KUVlrdfKowk/1.jpg
-		)
-	*/
+	//
+	//	Get info for video on Youtube or on Vimeo
+	//	return an array with title, descriptiom, thumb
+	//	$obj = new Minibots();
+	//	$infos = $obj->getVideoUrlInfo("http://www.youtube.com/watch?v=KUVlrdfKowk");
+	//	---> Array ( ... )
 	public function getVideoUrlInfo($url) {
 		if (!function_exists("curl_init")) die("getVideoUrlInfo needs CURL module, please install CURL on your php.");
 		$url = $this->makeabsolute($url, $this->doShortURLDecode($url));
@@ -1164,12 +1130,8 @@ Class Minibots
 		$title = isset($title_array[2][0]) ? trim(preg_replace('/ +/', ' ', $title_array[2][0])) : "";
 
 
-
-
-
-		//search keywords and description
+		//search description
 		preg_match_all('#<meta([^>]*)(.*)>#Uis', $web_page, $meta_array);
-		//print_r($meta_array);
 		$description="";
 		for($i=0;$i<count($meta_array[0]);$i++) 
 			if (strtolower($this->attr($meta_array[0][$i],"name"))=='description') 
@@ -1188,11 +1150,6 @@ Class Minibots
 			$thumb = "https://img.youtube.com/vi/".$yarr[2][0]."/1.jpg";
 			preg_match_all("#\\\?\"viewCount\\\?\":\\\?\"([0-9]*)\\\?\"#", $web_page, $countArray);
 			$viewCount = isset($countArray[1][0]) ? $countArray[1][0] : "";
-
-
-
-
-
 		}
 	
 		// Check vor Vimeo urls:
@@ -1207,21 +1164,12 @@ Class Minibots
 
 
 
-	/*
-		Get Facebook counters for a url using Facebook Apis.
-		return an array with title, descriptiom, thumb
-		$obj = new Minibots();
-		$infos = $obj->readFacebookCounters("http://www.dailybest.it/2013/03/05/vita-programmatore-gif-animate/","xxxxx","xxxxx");
-		---> Array
-		(
-			[total] => 7109
-			[likes] => 3438
-			[shares] => 1937
-			[clicks] => 0
-			[comments] => 1734
-			...
-		)
-	*/
+	//
+	//	Get Facebook counters for a url using Facebook Apis.
+	//	return an array with title, descriptiom, thumb
+	//	$obj = new Minibots();
+	//	$infos = $obj->readFacebookCounters("http://www.dailybest.it/2013/03/05/vita-programmatore-gif-animate/","xxxxx","xxxxx");
+	//	---> Array (...)
 	public function readFacebookCounters($url,$appid="",$secret="") {
 		// facebook counter are no longer public since august 2016
 		// you need an appid and appsecret to get data
@@ -1254,11 +1202,10 @@ Class Minibots
 
 
 
-	/*
-		Read Facebook Page counters using the informations in the meta
-		description tags:
-		<meta name="description" content="Dailybest. 104,829 likes &#xb7; 4,469 talking about this. Dailybest &#xe8; un magazine online dedicato al meglio della cultura digitale e della creativit&#xe0; italiana..." />
-	*/
+	//
+	//	Read Facebook Page counters using the informations in the meta
+	//	description tags:
+	//	<meta name="description" content="Dailybest. 104,829 likes &#xb7; 4,469 talking about this. Dailybest &#xe8; un magazine online dedicato al meglio della cultura digitale e della creativit&#xe0; italiana..." />
 	public function readFacebookPageCounters($url) {
 		$s = $this->getPage($url);
 		return $s[0];
@@ -1289,13 +1236,12 @@ Class Minibots
 
 
 
-	/*
-		Get number of tweets with the specified url counters for a url
-		return a number
-		$obj = new Minibots();
-		$infos = $obj->readTwitterCounters("http://www.dailybest.it/2013/03/05/vita-programmatore-gif-animate/");
-		---> 175
-	*/
+	//
+	//	Get number of tweets with the specified url counters for a url
+	//	return a number
+	//	$obj = new Minibots();
+	//	$infos = $obj->readTwitterCounters("http://www.dailybest.it/2013/03/05/vita-programmatore-gif-animate/");
+	//	---> 175
 	public function readTwitterCounter($url) {
 		// since november 2015 counters are no longer public
 		// to get them you have to register your site on http://opensharecount.com/
@@ -1309,34 +1255,19 @@ Class Minibots
 
 
 
-	/*
-		Get the keyword suggestion from google for a word and return an array with suggested keywords.
-		$obj = new Minibots();
-		$infos = $obj->googleSuggestKeywords("berlusconi");
-		---> Array
-		(
-			[0] => berlusconi
-			[1] => berlusconi news
-			[2] => berlusconi bunga bunga
-			[3] => berlusconi bunga bunga party
-			[4] => berlusconi net worth
-			[5] => berlusconi quotes
-			[6] => berlusconi ruby
-			[7] => berlusconi hump
-			[8] => berlusconi trial
-			[9] => berlusconi jail
-		)
-	*/
+	//
+	//	Get the keyword suggestion from google for a word and return an array with suggested keywords.
+	//	$obj = new Minibots();
+	//	$infos = $obj->googleSuggestKeywords("berlusconi");
+	//	---> Array (...)
 	public function googleSuggestKeywords($k) {
 		if (!function_exists("curl_init")) die("googleSuggestKeywords needs CURL module, please install CURL on your php.");
 		$k = explode(" ",$k); $k = $k[0];
 		$u = "http://google.com/complete/search?output=toolbar&q=" . $k;
 		$xml = simplexml_load_string(utf8_encode(file_get_contents($u)));
-
 		/*
 		<toplevel><CompleteSuggestion><suggestion data="berlusconi"/></CompleteSuggestion><CompleteSuggestion><suggestion data="berlusconi monza"/></CompleteSuggestion><CompleteSuggestion><suggestion data="berlusconi et�"/></CompleteSuggestion><CompleteSuggestion><suggestion data="berlusconi news"/></CompleteSuggestion><CompleteSuggestion><suggestion data="berlusconi salvini"/></CompleteSuggestion><CompleteSuggestion><suggestion data="berlusconi milan"/></CompleteSuggestion><CompleteSuggestion><suggestion data="berlusconi salute"/></CompleteSuggestion><CompleteSuggestion><suggestion data="berlusconi oggi"/></CompleteSuggestion><CompleteSuggestion><suggestion data="berlusconi malato"/></CompleteSuggestion><CompleteSuggestion><suggestion data="berlusconi patrimonio"/></CompleteSuggestion></toplevel>
 		*/
-
 		// Parse the keywords 
 		$result = $xml->xpath('//@data');
 		$ar = array();
