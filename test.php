@@ -13,7 +13,7 @@ include("minibots.class.php");
 
 $mb = new Minibots();
 
-echo "| <a href='test.php'>Page 1</a> | <a href='test2.php'>Page 2</a> | <a href='test3.php'>Page 3</a> | <a href='test4.php'>Page 4</a> |<hr>";
+echo "| <a href='test.php'><b>Page 1</b></a> | <a href='test2.php'>Page 2</a> | <a href='test3.php'>Page 3</a> | <a href='test4.php'>Page 4</a> |<hr>";
 
 // test getIp
 // -------------------------------------------------------------

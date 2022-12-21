@@ -12,7 +12,7 @@ b { background-color:#ffffcc;font-weight:normal;padding:0 3px;}
 include("minibots.class.php");
 
 $mb = new Minibots();
-echo "| <a href='test.php'>Page 1</a> | <a href='test2.php'>Page 2</a> | <a href='test3.php'>Page 3</a> | <a href='test4.php'>Page 4</a> |<hr>";
+echo "| <a href='test.php'>Page 1</a> | <a href='test2.php'>Page 2</a> | <a href='test3.php'>Page 3</a> | <a href='test4.php'><b>Page 4</b></a> |<hr>";
 
 echo "<h2>readFacebookPageCounters method</h2>";
 echo "<p>Get counters for a Facebook Fan Page <b>https://www.facebook.com/cocacolait/</b>:</p>";
