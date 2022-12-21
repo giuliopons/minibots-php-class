@@ -423,25 +423,6 @@ Class Minibots
 	}
 
 
-
-
-	//
-	//	Copy a remote url to your local server
-	public function copyFile($url,$filename){
-		// copy remote file to server
-		$file = fopen ($url, "rb");
-		if (!$file) return false; else {
-			$fc = fopen($filename, "wb");
-			while (!feof ($file)) {
-				$line = fread ($file, 1028);
-				fwrite($fc,$line);
-			}
-			fclose($fc);
-			return true;
-		}
-	}
-
-
 	//
 	// walk recursively throught an object and extract matching values
 	// by property name or by key. Useful to extract data from
@@ -520,6 +501,24 @@ Class Minibots
 
 
 
+	//
+	//	Copy a remote url to your local server
+	public function copyFile($url,$filename){
+		// copy remote file to server
+		$file = fopen ($url, "rb");
+		if (!$file) return false; else {
+			$fc = fopen($filename, "wb");
+			while (!feof ($file)) {
+				$line = fread ($file, 1028);
+				fwrite($fc,$line);
+			}
+			fclose($fc);
+			return true;
+		}
+	}
+
+
+	
 	//
 	//	Google spell suggest.
 	//	Usage example:
