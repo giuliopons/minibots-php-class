@@ -1,6 +1,6 @@
 <?php
 /* ------------------------------------------------------------------------- */
-/* minibots.class.php Ver.4.2                                                */
+/* minibots.class.php Ver.4.2b                                               */
 /* ------------------------------------------------------------------------- */
 /* Mini Bots class is a small php class that helps you to create bots,       */
 /* it uses some free web seriveces online to retrive usefull data.           */
@@ -85,7 +85,6 @@ Class Minibots
 	//	tag serie while scraping html
 	//	$return can be "ALL" | "INNER" | "OUTER"
 	public function getTags($tagname,$text,$return="ALL") {
-		$tagname = strtolower($tagname);
 		if($tagname=="img" || $tagname=="br" || $tagname=="input") {
 			// autoclose
 			preg_match_all('#<'.$tagname.'[^>]*?>#Uis', $text, $s);
@@ -106,6 +105,7 @@ Class Minibots
 	//	properly the url and the link.
 	public function makeabsolute($url,$link) {
 		$p = parse_url($url);
+		if (strpos( $link,"//")===0 ) return trim($link);
 		if (strpos( $link,"http://")===0 ) return trim($link);
 		if (strpos( $link,"https://")===0 ) return trim($link);
 		if($p['scheme']."://".$p['host']==$url && $link[0]!="/" && $link!=$url) return trim($p['scheme']."://".$p['host']."/".$link);
@@ -135,6 +135,16 @@ Class Minibots
 
 
 
+
+	// Not used yet
+	function getPageWP($url, $max_file_size=0) {
+
+		$response = wp_remote_get( $url );
+		$body     = wp_remote_retrieve_body( $response );
+		$header = wp_remote_retrieve_headers( $response );
+
+		return array($body , $header);
+	}
 
 
 
@@ -518,7 +528,7 @@ Class Minibots
 	}
 
 
-	
+
 	//
 	//	Google spell suggest.
 	//	Usage example:
@@ -752,7 +762,6 @@ Class Minibots
 	//	$infos = $obj->getUrlInfo("http://piccsy.com/2013/10/cute-dog"); 
 	//	--> array( ... )
 	public function getUrlInfo($url,$maximages=5,$minkbimg=10) {
-		global $DEBUG;
 
 		//
 		// DEFAULTS
@@ -770,6 +779,16 @@ Class Minibots
 
 
 		//
+		// IS A MAILTO URL
+		if(preg_match("#^mailto:#",$url)) {
+			$emails = $this->findEmails($url);
+			$e = array_pop($emails);
+			$data['title']= isset($e) ? $e : "Mailto command";
+			$data['description']= isset($e) ? "Send an email to this address" : "Send email";
+			return $data;
+		}
+
+		//
 		// EMPTY
 		if($url=="") { $data["err"] = "Empty url"; return $data; }
 
@@ -778,12 +797,13 @@ Class Minibots
 		// JAVASCRIPT
 		if(preg_match("/^javascript\:/",$url)) { $data["err"] = "Javascript code"; return $data; }
 
+    
 
 		//
 		// PARSE URL OBJECT
 		$parsed_url =  parse_url($url);
 		$data["domain"] = isset($parsed_url["host"]) ? $parsed_url["host"] : "";
-
+        $data["favicon"] = $parsed_url["scheme"]."://".$parsed_url["host"]."/favicon.ico"; //guess
 
 		//
 		// IS AN IMAGE FILE
@@ -792,7 +812,7 @@ Class Minibots
 			$data['description']= "This is an image file";
 			$data['title']=basename($url);
 			$data['images']=array($url);
-			$data['favicon'] = $parsed_url["scheme"]."://".$parsed_url["host"]."/favicon.ico";
+			$data['favicon'] = $parsed_url["scheme"]."://".$parsed_url["host"]."/favicon.ico"; //guess
 			return $data;
 		}
 
@@ -861,20 +881,18 @@ Class Minibots
 		//
 		// IS INSTAGRAM URL
 		if(preg_match("#^https?://(www\.)?instagram\.com#",$url)) {
-			$data['title']="Instagram URL";
-			$data['description']="Sorry can't fetch content";
+			// TRY SPECIFIC BOT
+			$metas = $this->getInstagramUrl($url);
+			if(isset($metas["og:description"])) {
+				$data['title']= $metas["twitter:title"];
+				$data['description']= $metas["og:description"];
+			} else {
+				$data['title']="Instagram URL";
+				$data['description']="Sorry can't fetch content";
+			}
 			return $data;
 		}
 
-		//
-		// IS A MAILTO URL
-		if(preg_match("#^mailto:#",$url)) {
-			$emails = $this->findEmails($url);
-			$e = array_pop($emails);
-			$data['title']= isset($e) ? $e : "Mailto command";
-			$data['description']= isset($e) ? "Send an email to this address" : "Send email";
-			return $data;
-		}
 
 
 		//
@@ -883,13 +901,27 @@ Class Minibots
 
 
 
+
 		//
 		// FETCH URL
 		$web_page_ar = $this->getPage($url, $maximages == 0 ? 5000 : 0);
 
+
+		// IF META REFRESH WITH HTML GET NEW URL
+		$metas = $this->getMetaTags($web_page_ar[0],["http-equiv"]);
+		if(isset($metas["refresh"]))  {
+			$metas["refresh"] = preg_replace("/^([0-9]*)\;URL=/i","",$metas["refresh"]);
+			if($metas["refresh"]!="") {
+				$url = $metas["refresh"];
+				$web_page_ar = $this->getPage($url, $maximages == 0 ? 5000 : 0);
+				$parsed_url =  parse_url($url);
+				$data["domain"] = isset($parsed_url["host"]) ? $parsed_url["host"] : "";
+			}
+		}
+
 		
-		// IF THE FETCHED URL IS A REDIRECT
-		// UPDATE INFO
+		// IF THE FETCHED URL WAS A REDIRECT (CURL FOLLOWS REDIRECT)
+		// UPDATE URL INFO
 		preg_match("#\nlocation: (.*)\n#Uis",$web_page_ar[1],$newurl);
 		if(isset($newurl[1]) && $newurl[1]!="") {
 			$url = $newurl[1];
@@ -897,35 +929,31 @@ Class Minibots
 			$data["domain"] = isset($parsed_url["host"]) ? $parsed_url["host"] : "";
 		}
 
+
 		// ADDITIONAL DATA
 		$ldJsonOembed = $this->getLdJsonStringOembed( $web_page_ar[0] );
 
 
-
 		//
 		// SEARCH TITLE
-		preg_match_all('#<title([^>]*)?>(.*)</title>#Uis', $web_page_ar[0], $title_array);
-		$data['title'] = isset($title_array[2][0]) ? trim($title_array[2][0]) : "";
+		$title_array = $this->getTags("title", $web_page_ar[0], "INNER");
+		/*preg_match_all('#<title([^>]*)?>(.*)</title>#Uis', $web_page_ar[0], $title_array);*/
+		$data['title'] = isset($title_array[0]) ? $title_array[0] : "";
 
-		
-		if( $DEBUG ) {
-			echo "\n----------\$data------------\n";
-			print_r($title_array);
-			echo "\n----------\n";
-		}
 		//
-		// SEARCH DESCRIPTION
+		// SEARCH DESCRIPTION AND TITLE
 		// 1 LDJSON / OEMBED
 		$arDescription = $this->walk_recursive( $ldJsonOembed, "description" );
-		if(is_array($arDescription)) $data['description'] = array_pop($arDescription);
+		if(is_array($arDescription) && isset($arDescription[0])) $data['description'] = $arDescription[0]; // o array_pop ?
+			else $data['description']="";
+
+
 		// 2 META
 		if($data['description']=="") {
-			preg_match_all('#<meta([^>]*)(.*)>#Uis', $web_page_ar[0], $meta_array);
-			for($i=0;$i<count($meta_array[0]);$i++) {
-				if (strtolower($this->attr($meta_array[0][$i],"name"))=='description') $data['description'] = trim($this->attr($meta_array[0][$i],"content"));
-				if (strtolower($this->attr($meta_array[0][$i],"property"))=='og:description') $data['description'] = trim($this->attr($meta_array[0][$i],"content"));
-				if (strtolower($this->attr($meta_array[0][$i],"property"))=='og:title') $data['title'] = trim($this->attr($meta_array[0][$i],"content"));
-			}
+			$metas = $this->getMetaTags($web_page_ar[0]);
+			if(isset($metas["description"])) $data["description"] = $metas["description"];
+			if(isset($metas["og:description"])) $data["description"] = $metas["og:description"];
+			if(isset($metas["og:title"])) $data["title"] = $metas["og:title"];
 		}
 
 		// 3 FIRST <P>
@@ -957,38 +985,34 @@ Class Minibots
 		$arPrice = $this->walk_recursive( $ldJsonOembed, "price" );
 		if(is_array($arPrice)) {
 			$data['price'] = array_pop($arPrice);
-			$currency = array_pop( $this->walk_recursive( $ldJsonOembed, "priceCurrency" ) );// (WOOCOMMERCE)
-			$currency = $currency !="" ? $currency : array_pop( $this->walk_recursive( $ldJsonOembed, "currency_code" ) );// (SHOPIFY)
-			$data['price'] .= " ".$currency;
+			$ar = $this->walk_recursive( $ldJsonOembed, "priceCurrency" );
+			$currency = array_pop( $ar );// (WOOCOMMERCE)
+			$ar = $this->walk_recursive( $ldJsonOembed, "currency_code" );
+			$currency = $currency !="" ? $currency : array_pop( $ar  );// (SHOPIFY)
+			if($currency == "USD") $currency = "$";
+			if($currency == "EUR") $currency = "€";
+			if( $data['price'] > 1) $data['price'] = number_format($data['price'],0);
+			$data['price'] .= $currency;
+			$data['price'] = trim($data['price']);
 		}
 
 
 
 
 		//
-		// SEARCH MAIN IMAGES ON OPEN GRAPH AND SCHEMA ORG
-		$imgs0 = array();
+		// SEARCH MAIN IMAGES ON OPEN GRAPH, META AND SCHEMA ORG
+		$imgs0 = array(); // correct
+		$imgs = array();  // other
 		$arImgs = $this->walk_recursive( $ldJsonOembed, "image" );
 		if(is_array($arImgs)) $imgs0 = $arImgs;
-		preg_match_all('#<meta([^>]*)(.*)/?>#Uis', $web_page_ar[0], $meta_array);
-		$imgs = array();
-		for($i=0;$i<count($meta_array[0]);$i++) {
-			$att1 = $this->attr($meta_array[0][$i],"property");
-			$att2 = $this->attr($meta_array[0][$i],"itemprop");
-			$att3 = $this->attr($meta_array[0][$i],"name");
-			if ($att1 == "og:image" || $att2=="image"|| $att3=="image") {
-				$src = trim($this->attr($meta_array[0][$i],"content"));
-				array_push($imgs0,$src);
-				break;
-			}
-		}
+		$metas = $this->getMetaTags($web_page_ar[0]);
+		foreach($metas as $k => $v) if(in_array($k, array("og:image","image") )) array_push($imgs0,$v);
 
-		
 
 
 		//
 		// AMAZON URLS
-		if(stristr($url,"amazon")) {
+		if(preg_match("/^https?:\/\/www\.amazon\.([^\.\/]*)\//i",$url)) {
 
 			// description
 			$desc = trim($this->betweenTags($web_page_ar[0],"bookDescEncodedData =",'",'));
@@ -1019,6 +1043,8 @@ Class Minibots
 			preg_match_all("/(\"|')displayPrice(\"|')( *)?:( *)?(\"|')(.*)(\"|')/imsU",$web_page_ar[0],$price); //price
 			if(isset($price[6][0]) && !empty($price[6][0])) {
 				$data["price"] = $this->justText($price[6][0]);
+				if( $data['price'] > 1) $data['price'] = number_format($data['price'],0);
+				$data['price'] = str_replace(" ","",$data['price']);
 			}
 
 			// IMMAGINI
@@ -1890,18 +1916,28 @@ Class Minibots
 
 
 
-	/*
-		Get a Gravatar URL for a specified email address
-		based on code found here: http://gravatar.com/site/implement/images/php/
-		
-		@param string $email The email address
-		@param string $s Size in pixels, defaults to 80px [ 1 - 2048 ]
-		@param string $d Default imageset to use [ 404 | mm | identicon | monsterid | wavatar ]
-	*/
-	public function getGravatar( $email, $s = 80, $d = 'mm' ) {
-		$url = 'http://www.gravatar.com/avatar/';
+	/** 
+	 * Get either a Gravatar URL or complete image tag for a specified email address.
+	 *
+	 * @param string $email The email address
+	 * @param string $s Size in pixels, defaults to 80px [ 1 - 2048 ]
+	 * @param string $d Default imageset to use [ 404 | mp | identicon | monsterid | wavatar ]
+	 * @param string $r Maximum rating (inclusive) [ g | pg | r | x ]
+	 * @param boolean $img True to return a complete IMG tag False for just the URL
+	 * @param array $atts Optional, additional key/value attributes to include in the IMG tag
+	 * @return string containing either just a URL or a complete image tag
+	 * @source https://gravatar.com/site/implement/images/php/
+	 */
+	function get_gravatar( $email, $s = 80, $d = 'mp', $r = 'g', $img = false, $atts = array() ) {
+		$url = 'https://www.gravatar.com/avatar/';
 		$url .= md5( strtolower( trim( $email ) ) );
 		$url .= "?s=$s&d=$d&r=$r";
+		if ( $img ) {
+			$url = '<img src="' . $url . '"';
+			foreach ( $atts as $key => $val )
+				$url .= ' ' . $key . '="' . $val . '"';
+			$url .= ' />';
+		}
 		return $url;
 	}
 
@@ -1957,24 +1993,110 @@ Class Minibots
 
 
 
+
+
+	//
+	// get AI generatd text from Open AI (ChatGPT)
+	function getAItext($prompt, $apikey="") {
+		$ch = curl_init();
+	
+		curl_setopt($ch, CURLOPT_URL, 'https://api.openai.com/v1/completions');
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+		curl_setopt($ch, CURLOPT_POST, 1);
+		curl_setopt($ch, CURLOPT_POSTFIELDS, "{\n  \"model\": \"text-davinci-003\",\n  \"prompt\": \"" . addslashes($prompt). "\",\n  \"temperature\": 0.7,\n  \"max_tokens\": 256,\n  \"top_p\": 1,\n  \"frequency_penalty\": 0,\n  \"presence_penalty\": 0\n}");
+	
+		$headers = array();
+		$headers[] = 'Content-Type: application/json';
+		$headers[] = 'Authorization: Bearer ' . $apikey;
+		curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+	
+		$result = curl_exec($ch);
+		if (curl_errno($ch)) {
+			echo 'Error:' . curl_error($ch);
+		}
+		curl_close($ch);
+
+		if($result!="") {
+			$obj = json_decode($result);
+			$ar = $this->walk_recursive($obj,"text");
+			return $ar[0];
+		}
+
+		return $result;
+	}
+
+
+
+	//
+	// extract meta tags
+	public function getMetaTags($html, $ar = array( "name", "property", "itemprop") ) {
+		preg_match_all('#<meta([^>]*)(.*)>#Uis', $html, $meta_array);
+		$data = [];
+		for($i=0;$i<count($meta_array[0]);$i++) {
+			foreach($ar as $k)	{
+				$key = $this->attr($meta_array[0][$i], $k );
+				if ($key!="") $data[$key] = trim($this->attr($meta_array[0][$i],"content"));
+			}
+		}			
+		return $data;
+	}
+
+
+	//
+	// get some info on an instagram image url
+	public function getInstagramUrl($url) {
+		$ch = curl_init();
+
+		curl_setopt($ch, CURLOPT_URL, $url);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
+
+		curl_setopt($ch, CURLOPT_ENCODING, 'gzip, deflate');
+
+		$headers = array();
+		$headers[] = 'Authority: www.instagram.com';
+		$headers[] = 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8';
+		$headers[] = 'Accept-Language: it-IT,it;q=0.9';
+		$headers[] = 'Cache-Control: no-cache';
+		$headers[] = 'Pragma: no-cache';
+		$headers[] = 'Sec-Fetch-Dest: document';
+		$headers[] = 'Sec-Fetch-Mode: navigate';
+		$headers[] = 'Sec-Fetch-Site: none';
+		$headers[] = 'Sec-Fetch-User: ?1';
+		$headers[] = 'Sec-Gpc: 1';
+		$headers[] = 'Upgrade-Insecure-Requests: 1';
+		$headers[] = 'User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1';
+		curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+		
+		$result = curl_exec($ch);
+		if (curl_errno($ch)) {
+			echo 'Error:' . curl_error($ch);
+		}
+		curl_close($ch);
+
+		return $this->getMetaTags($result);
+		
+		
+
+
+	}
+
+
+
+		
 	/*
 		DEAD CODE WALKING
 		
 		search google images for the specified keywords. The results are small in
 		size
 	*/
-		public function getImageGoogle($k) {
-			// domain .it works 26/04/2017
-			$url = "https://www.google.it/search?q=##query##&tbm=isch";
-			$web_page = $this->getPage( str_replace("##query##",urlencode($k), $url ));
-			preg_match_all("/-?src=\"(http([^\"]*))\"/",$web_page[0],$a);
-			return isset($a[1]) ? $a[1] : null;
-		}
-	
-
-
-	
-
+	public function getImageGoogle($k) {
+		// domain .it works 26/04/2017
+		$url = "https://www.google.it/search?q=##query##&tbm=isch";
+		$web_page = $this->getPage( str_replace("##query##",urlencode($k), $url ));
+		preg_match_all("/-?src=\"(http([^\"]*))\"/",$web_page[0],$a);
+		return isset($a[1]) ? $a[1] : null;
+	}
 }
 
 
